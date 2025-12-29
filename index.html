@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Conteúdo - Estilo Banlek</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .poster-card:hover .overlay { opacity: 1; }
+        .tab-active { border-bottom: 3px solid #2563eb; color: #2563eb; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900 min-h-screen">
+
+    <nav class="bg-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <h1 class="text-xl font-black text-blue-600 tracking-tighter cursor-pointer" onclick="showPage('cliente')">SOLICITA<span class="text-gray-800">PLAY</span></h1>
+            <div class="space-x-4">
+                <button onclick="showPage('cliente')" class="text-sm font-bold uppercase hover:text-blue-600">Site</button>
+                <button onclick="showPage('admin')" class="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition">Painel Admin</button>
+            </div>
+        </div>
+    </nav>
+
+    <main id="page-cliente" class="container mx-auto px-4 py-8">
+        <div class="max-w-2xl mx-auto mb-10 text-center">
+            <h2 class="text-3xl font-bold mb-4">O que você quer assistir?</h2>
+            <div class="relative">
+                <input type="text" id="searchInput" onkeyup="searchTMDB()" placeholder="Busque pelo nome do filme ou série..." 
+                    class="w-full pl-12 pr-4 py-4 border-none shadow-xl rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none">
+                <i class="fas fa-search absolute left-5 top-5 text-gray-400"></i>
+            </div>
+        </div>
+        
+        <div id="grid-content" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
+            </div>
+    </main>
+
+    <main id="page-admin" class="container mx-auto px-4 py-8 hidden">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-2xl font-bold">Gerenciar Solicitações</h2>
+            <button onclick="clearAll()" class="text-red-500 text-sm hover:underline">Limpar tudo</button>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead class="bg-gray-50 text-gray-400 text-xs uppercase font-medium">
+                    <tr>
+                        <th class="p-4">Conteúdo</th>
+                        <th class="p-4">Solicitante</th>
+                        <th class="p-4">Tipo</th>
+                        <th class="p-4">Status</th>
+                        <th class="p-4 text-center">Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="admin-table" class="divide-y divide-gray-100">
+                    </tbody>
+            </table>
+        </div>
+    </main>
+
+    <div id="modal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-[60] backdrop-blur-sm">
+        <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl">
+            <div id="modal-poster" class="w-24 h-36 bg-gray-200 rounded-lg mb-4 mx-auto overflow-hidden shadow-lg"></div>
+            <h3 class="text-2xl font-bold text-center mb-1" id="modalTitle">Nome do Filme</h3>
+            <p id="modalInfo" class="text-center text-gray-500 text-sm mb-6"></p>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="text-xs font-bold text-gray-400 uppercase">Seu Nome</label>
+                    <input type="text" id="userName" placeholder="Ex: João da Silva" class="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-gray-400 uppercase">O que deseja?</label>
+                    <select id="requestType" class="w-full p-3 bg-gray-50 border rounded-xl outline-none">
+                        <option value="Adição">🎬 Solicitar Adição</option>
+                        <option value="Conserto">🛠️ Reportar Erro</option>
+                        <option value="Atualização">🔄 Pedir Atualização</option>
+                    </select>
+                </div>
+                <button onclick="saveRequest()" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition">Enviar Solicitação</button>
+                <button onclick="closeModal()" class="w-full text-gray-400 text-sm font-medium">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_KEY = '9e64130cb366f23a3398f4f7c8e982c0';
+        let currentItem = {};
+
+        // Alternar páginas
+        function showPage(page) {
+            document.getElementById('page-cliente').classList.toggle('hidden', page !== 'cliente');
+            document.getElementById('page-admin').classList.toggle('hidden', page !== 'admin');
+            if(page === 'admin') renderAdminTable();
+        }
+
+        // Busca TMDB
+        async function searchTMDB() {
+            const query = document.getElementById('searchInput').value;
+            if(query.length < 3) return;
+            const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${API_KEY}&language=pt-BR&query=${query}`);
+            const data = await res.json();
+            
+            const grid = document.getElementById('grid-content');
+            grid.innerHTML = '';
+            data.results.forEach(item => {
+                if(!item.poster_path) return;
+                const name = item.title || item.name;
+                grid.innerHTML += `
+                    <div onclick="openModal('${name}', '${item.id}', 'https://image.tmdb.org/t/p/w500${item.poster_path}')" class="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition cursor-pointer transform hover:-translate-y-1">
+                        <img src="https://image.tmdb.org/t/p/w500${item.poster_path}" class="w-full h-64 object-cover">
+                        <div class="p-3"><h4 class="font-bold text-sm truncate">${name}</h4></div>
+                    </div>`;
+            });
+        }
+
+        function openModal(name, id, img) {
+            currentItem = { name, id, img };
+            document.getElementById('modalTitle').innerText = name;
+            document.getElementById('modalInfo').innerText = "ID: " + id;
+            document.getElementById('modal-poster').innerHTML = `<img src="${img}" class="w-full h-full object-cover">`;
+            document.getElementById('modal').classList.remove('hidden');
+        }
+
+        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+
+        // SALVAR NO "BANCO DE DADOS" (LocalStorage)
+        function saveRequest() {
+            const user = document.getElementById('userName').value;
+            const type = document.getElementById('requestType').value;
+            if(!user) return alert("Por favor, diga seu nome.");
+
+            const pedidos = JSON.parse(localStorage.getItem('meus_pedidos') || '[]');
+            pedidos.push({
+                ...currentItem,
+                user,
+                type,
+                status: 'Pendente',
+                date: new Date().toLocaleDateString()
+            });
+
+            localStorage.setItem('meus_pedidos', JSON.stringify(pedidos));
+            alert("Pedido enviado com sucesso!");
+            closeModal();
+        }
+
+        // RENDERIZAR TABELA ADMIN
+        function renderAdminTable() {
+            const pedidos = JSON.parse(localStorage.getItem('meus_pedidos') || '[]');
+            const table = document.getElementById('admin-table');
+            table.innerHTML = '';
+
+            pedidos.forEach((p, index) => {
+                const statusClass = p.status === 'Aceito' ? 'bg-green-100 text-green-700' : p.status === 'Recusado' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700';
+                table.innerHTML += `
+                    <tr>
+                        <td class="p-4 flex items-center gap-3">
+                            <img src="${p.img}" class="w-10 h-14 rounded object-cover">
+                            <span class="font-bold">${p.name}</span>
+                        </td>
+                        <td class="p-4 text-sm">${p.user}</td>
+                        <td class="p-4 text-sm font-medium">${p.type}</td>
+                        <td class="p-4"><span class="px-3 py-1 rounded-full text-xs font-bold ${statusClass}">${p.status}</span></td>
+                        <td class="p-4 text-center space-x-2">
+                            <button onclick="updateStatus(${index}, 'Aceito')" class="text-green-500 hover:bg-green-50 p-2 rounded-lg"><i class="fas fa-check"></i></button>
+                            <button onclick="updateStatus(${index}, 'Recusado')" class="text-red-500 hover:bg-red-50 p-2 rounded-lg"><i class="fas fa-times"></i></button>
+                        </td>
+                    </tr>`;
+            });
+        }
+
+        function updateStatus(index, status) {
+            const pedidos = JSON.parse(localStorage.getItem('meus_pedidos'));
+            pedidos[index].status = status;
+            localStorage.setItem('meus_pedidos', JSON.stringify(pedidos));
+            renderAdminTable();
+        }
+
+        function clearAll() {
+            if(confirm("Deseja apagar todos os pedidos?")) {
+                localStorage.removeItem('meus_pedidos');
+                renderAdminTable();
+            }
+        }
+    </script>
+</body>
+</html>
