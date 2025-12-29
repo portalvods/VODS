@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SOLICITAPLAY - Sistema de Pedidos</title>
+    <title>SOLICITAPLAY - Filmes & Canais</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        .poster-card:hover .overlay { opacity: 1; }
-        .tab-active { border-bottom: 3px solid #2563eb; color: #2563eb; }
+        .tab-btn.active { border-bottom: 3px solid #2563eb; color: #2563eb; }
+        .hidden { display: none; }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-900 min-h-screen">
@@ -25,71 +25,69 @@
 
     <main id="page-cliente" class="container mx-auto px-4 py-8">
         <div class="max-w-2xl mx-auto mb-10 text-center">
-            <h2 class="text-3xl font-bold mb-4">O que você quer assistir?</h2>
+            <h2 class="text-3xl font-bold mb-6">O que deseja solicitar?</h2>
+            
+            <div class="flex justify-center space-x-8 mb-8 border-b">
+                <button onclick="setSearchMode('movie')" id="btn-movie" class="tab-btn active pb-2 font-bold uppercase text-sm flex items-center gap-2">
+                    <i class="fas fa-film"></i> Filmes/Séries
+                </button>
+                <button onclick="setSearchMode('tv')" id="btn-tv" class="tab-btn pb-2 font-bold uppercase text-sm flex items-center gap-2 text-gray-400">
+                    <i class="fas fa-tv"></i> Canais ao Vivo
+                </button>
+            </div>
+
             <div class="relative">
-                <input type="text" id="searchInput" onkeyup="searchTMDB()" placeholder="Busque pelo nome do filme ou série..." 
+                <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="Busque filmes e séries..." 
                     class="w-full pl-12 pr-4 py-4 border-none shadow-xl rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none">
                 <i class="fas fa-search absolute left-5 top-5 text-gray-400"></i>
             </div>
         </div>
         
-        <div id="grid-content" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6">
-        </div>
+        <div id="grid-content" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6"></div>
     </main>
 
     <main id="page-admin" class="container mx-auto px-4 py-8 hidden">
         <div class="flex justify-between items-center mb-8">
-            <h2 class="text-2xl font-bold">Gerenciar Solicitações</h2>
-            <div class="space-x-4">
-                <button onclick="showPage('cliente')" class="text-gray-500 hover:underline">Sair do Painel</button>
-                <button onclick="clearAll()" class="text-red-500 text-sm hover:underline">Limpar tudo</button>
-            </div>
+            <h2 class="text-2xl font-bold text-blue-600">Painel de Controle</h2>
+            <button onclick="clearAll()" class="text-red-500 text-sm font-bold"><i class="fas fa-trash"></i> Limpar Tudo</button>
         </div>
 
         <div class="bg-white rounded-2xl shadow-sm overflow-x-auto">
             <table class="w-full text-left border-collapse">
-                <thead class="bg-gray-50 text-gray-400 text-xs uppercase font-medium">
+                <thead class="bg-gray-50 text-gray-400 text-[10px] uppercase font-bold">
                     <tr>
+                        <th class="p-4">Tipo</th>
                         <th class="p-4">Conteúdo</th>
                         <th class="p-4">Solicitante</th>
-                        <th class="p-4">Tipo/Obs</th>
+                        <th class="p-4">Obs</th>
                         <th class="p-4">Status</th>
                         <th class="p-4 text-center">Ações</th>
                     </tr>
                 </thead>
-                <tbody id="admin-table" class="divide-y divide-gray-100"></tbody>
+                <tbody id="admin-table" class="divide-y divide-gray-100 text-sm"></tbody>
             </table>
         </div>
     </main>
 
     <div id="modal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-[60] backdrop-blur-sm">
         <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl overflow-y-auto max-h-[90vh]">
-            <div id="modal-poster" class="w-24 h-36 bg-gray-200 rounded-lg mb-4 mx-auto overflow-hidden shadow-lg"></div>
-            <h3 class="text-2xl font-bold text-center mb-1" id="modalTitle">Nome do Filme</h3>
+            <div id="modal-poster" class="w-24 h-36 bg-gray-200 rounded-lg mb-4 mx-auto overflow-hidden shadow-lg flex items-center justify-center"></div>
+            <h3 class="text-2xl font-bold text-center mb-1" id="modalTitle"></h3>
             <p id="modalInfo" class="text-center text-gray-500 text-sm mb-6"></p>
             
             <div class="space-y-4">
-                <div>
-                    <label class="text-xs font-bold text-gray-400 uppercase">Seu Nome</label>
-                    <input type="text" id="userName" placeholder="Ex: João da Silva" class="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="text-xs font-bold text-gray-400 uppercase">Seu E-mail (Obrigatório)</label>
-                    <input type="email" id="userEmail" placeholder="exemplo@email.com" class="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:border-blue-500">
-                </div>
-                <div>
-                    <label class="text-xs font-bold text-gray-400 uppercase">O que deseja?</label>
-                    <select id="requestType" class="w-full p-3 bg-gray-50 border rounded-xl outline-none">
-                        <option value="Adição">🎬 Solicitar Adição</option>
-                        <option value="Conserto">🛠️ Reportar Erro</option>
-                        <option value="Atualização">🔄 Pedir Atualização</option>
-                    </select>
-                </div>
-                <div>
-                    <label class="text-xs font-bold text-gray-400 uppercase">Observações</label>
-                    <textarea id="userObs" rows="2" placeholder="Detalhes extras..." class="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:border-blue-500"></textarea>
-                </div>
-                <button onclick="saveRequest()" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-200 hover:bg-blue-700 transition">Enviar Solicitação</button>
+                <input type="text" id="userName" placeholder="Seu Nome" class="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:border-blue-500">
+                <input type="email" id="userEmail" placeholder="Seu E-mail (Obrigatório)" class="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:border-blue-500">
+                
+                <select id="requestType" class="w-full p-3 bg-gray-50 border rounded-xl outline-none">
+                    <option value="Adição">🎬 Solicitar Adição</option>
+                    <option value="Conserto">🛠️ Reportar Erro/Sinal</option>
+                    <option value="Atualização">🔄 Pedir Atualização</option>
+                </select>
+
+                <textarea id="userObs" rows="2" placeholder="Observações (Opcional)" class="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:border-blue-500"></textarea>
+                
+                <button onclick="saveRequest()" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg hover:bg-blue-700 transition">Confirmar Pedido</button>
                 <button onclick="closeModal()" class="w-full text-gray-400 text-sm font-medium">Cancelar</button>
             </div>
         </div>
@@ -97,22 +95,36 @@
 
     <script>
         const API_KEY = '9e64130cb366f23a3398f4f7c8e982c0';
-        const ADMIN_PASSWORD = '1234'; 
+        const ADMIN_PASSWORD = 'vods123@'; 
         let currentItem = {};
+        let searchMode = 'movie'; 
+
+        const canaisFamosos = [
+            { name: "Globo", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/TV_Globo_logo.svg/1024px-TV_Globo_logo.svg.png" },
+            { name: "SporTV", img: "https://upload.wikimedia.org/wikipedia/pt/2/23/Logo_SporTV_2021.png" },
+            { name: "HBO", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/HBO_logo.svg/1200px-HBO_logo.svg.png" },
+            { name: "Discovery", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/f/f5/Discovery_Channel_logo.svg/1200px-Discovery_Channel_logo.svg.png" },
+            { name: "Disney", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/d2/Disney_Channel_logo.svg/1024px-Disney_Channel_logo.svg.png" }
+        ];
 
         function checkAdminPassword() {
-            const pass = prompt("Digite a senha de administrador:");
-            if (pass === ADMIN_PASSWORD) {
-                showPage('admin');
-            } else if (pass !== null) {
-                alert("Senha incorreta!");
-            }
+            const pass = prompt("Senha do Admin:");
+            if (pass === ADMIN_PASSWORD) showPage('admin');
+            else if (pass !== null) alert("Senha incorreta!");
         }
 
-        function showPage(page) {
-            document.getElementById('page-cliente').classList.toggle('hidden', page !== 'cliente');
-            document.getElementById('page-admin').classList.toggle('hidden', page !== 'admin');
-            if(page === 'admin') renderAdminTable();
+        function setSearchMode(mode) {
+            searchMode = mode;
+            document.getElementById('btn-movie').className = `tab-btn pb-2 font-bold uppercase text-sm flex items-center gap-2 ${mode === 'movie' ? 'active text-blue-600' : 'text-gray-400'}`;
+            document.getElementById('btn-tv').className = `tab-btn pb-2 font-bold uppercase text-sm flex items-center gap-2 ${mode === 'tv' ? 'active text-blue-600' : 'text-gray-400'}`;
+            document.getElementById('grid-content').innerHTML = '';
+            document.getElementById('searchInput').value = '';
+            document.getElementById('searchInput').placeholder = mode === 'movie' ? "Busque filmes e séries..." : "Qual canal deseja?";
+        }
+
+        function handleSearch() {
+            if (searchMode === 'movie') searchTMDB();
+            else searchCanais();
         }
 
         async function searchTMDB() {
@@ -120,31 +132,43 @@
             if(query.length < 3) return;
             const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${API_KEY}&language=pt-BR&query=${query}`);
             const data = await res.json();
-            
+            renderGrid(data.results.map(i => ({ 
+                name: (i.title || i.name).replace(/'/g, ""), 
+                img: i.poster_path ? `https://image.tmdb.org/t/p/w500${i.poster_path}` : null,
+                cat: 'Filme/Série'
+            })));
+        }
+
+        function searchCanais() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            if(query.length < 2) return;
+            const filtrados = canaisFamosos.filter(c => c.name.toLowerCase().includes(query));
+            const resultados = filtrados.map(c => ({ ...c, cat: 'Canal TV' }));
+            resultados.push({ name: `Pedir: ${query}`, img: 'https://cdn-icons-png.flaticon.com/512/716/716429.png', cat: 'Canal TV' });
+            renderGrid(resultados);
+        }
+
+        function renderGrid(items) {
             const grid = document.getElementById('grid-content');
             grid.innerHTML = '';
-            data.results.forEach(item => {
-                if(!item.poster_path) return;
-                const name = (item.title || item.name).replace(/'/g, "");
-                const poster = `https://image.tmdb.org/t/p/w500${item.poster_path}`;
+            items.forEach(item => {
+                if(!item.img && searchMode === 'movie') return;
                 grid.innerHTML += `
                     <div class="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition transform hover:-translate-y-1">
-                        <img src="${poster}" class="w-full h-64 object-cover">
+                        <img src="${item.img || 'https://via.placeholder.com/500x750?text=Sem+Imagem'}" class="w-full h-56 object-cover">
                         <div class="p-3 text-center">
-                            <h4 class="font-bold text-sm truncate mb-2">${name}</h4>
-                            <button onclick="openModal('${name}', '${item.id}', '${poster}')" 
-                                class="w-full bg-blue-600 text-white py-2 rounded-lg text-xs font-bold hover:bg-blue-700">
-                                SOLICITAR
-                            </button>
+                            <h4 class="font-bold text-xs truncate mb-2">${item.name}</h4>
+                            <button onclick="openModal('${item.name}', '${item.cat}', '${item.img}')" 
+                                class="w-full bg-blue-600 text-white py-2 rounded-lg text-[10px] font-bold">SOLICITAR</button>
                         </div>
                     </div>`;
             });
         }
 
-        function openModal(name, id, img) {
-            currentItem = { name, id, img };
+        function openModal(name, cat, img) {
+            currentItem = { name, cat, img };
             document.getElementById('modalTitle').innerText = name;
-            document.getElementById('modalInfo').innerText = "ID: " + id;
+            document.getElementById('modalInfo').innerText = "Categoria: " + cat;
             document.getElementById('modal-poster').innerHTML = `<img src="${img}" class="w-full h-full object-cover">`;
             document.getElementById('modal').classList.remove('hidden');
         }
@@ -157,44 +181,20 @@
             const type = document.getElementById('requestType').value;
             const obs = document.getElementById('userObs').value;
             
-            // Validações básicas
-            if(!user || !email) return alert("Por favor, preencha seu nome e e-mail.");
-            if(!email.includes('@')) return alert("Por favor, insira um e-mail válido.");
+            if(!user || !email) return alert("Preencha Nome e E-mail!");
+            if(!email.includes('@')) return alert("E-mail inválido!");
 
             const pedidos = JSON.parse(localStorage.getItem('meus_pedidos') || '[]');
-            
-            // LÓGICA DE LIMITE POR E-MAIL (24h)
             const agora = new Date().getTime();
             const UM_DIA = 24 * 60 * 60 * 1000;
 
-            const ultimoPedido = pedidos.reverse().find(p => p.email === email);
-            pedidos.reverse(); 
+            const jaPediu = pedidos.find(p => p.email === email && (agora - p.timestamp < UM_DIA));
+            if (jaPediu) return alert("Você já fez um pedido hoje. Tente novamente amanhã.");
 
-            if (ultimoPedido) {
-                const tempoPassado = agora - ultimoPedido.timestamp;
-                if (tempoPassado < UM_DIA) {
-                    const horasRestantes = Math.ceil((UM_DIA - tempoPassado) / (1000 * 60 * 60));
-                    return alert(`O e-mail ${email} já realizou um pedido hoje. Tente novamente em ${horasRestantes} horas.`);
-                }
-            }
-
-            pedidos.push({
-                ...currentItem,
-                user,
-                email,
-                type,
-                obs,
-                status: 'Pendente',
-                date: new Date().toLocaleString('pt-BR'),
-                timestamp: agora
-            });
-
+            pedidos.push({ ...currentItem, user, email, type, obs, status: 'Pendente', date: new Date().toLocaleString('pt-BR'), timestamp: agora });
             localStorage.setItem('meus_pedidos', JSON.stringify(pedidos));
-            alert("Pedido enviado com sucesso!");
             
-            document.getElementById('userName').value = "";
-            document.getElementById('userEmail').value = "";
-            document.getElementById('userObs').value = "";
+            alert("Solicitação enviada!");
             closeModal();
         }
 
@@ -202,57 +202,51 @@
             const pedidos = JSON.parse(localStorage.getItem('meus_pedidos') || '[]');
             const table = document.getElementById('admin-table');
             table.innerHTML = '';
-
-            pedidos.forEach((p, index) => {
-                const statusClass = p.status === 'Aceito' ? 'bg-green-100 text-green-700' : p.status === 'Recusado' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700';
+            pedidos.reverse().forEach((p, index) => {
+                const statusColor = p.status === 'Aceito' ? 'text-green-600 bg-green-50' : 'text-yellow-600 bg-yellow-50';
                 table.innerHTML += `
                     <tr>
-                        <td class="p-4 flex items-center gap-3">
-                            <img src="${p.img}" class="w-10 h-14 rounded object-cover shadow-sm">
-                            <div>
-                                <p class="font-bold text-sm leading-tight">${p.name}</p>
-                                <span class="text-[10px] text-gray-400">${p.date}</span>
-                            </div>
+                        <td class="p-4"><span class="px-2 py-1 rounded bg-blue-50 text-blue-700 text-[9px] font-bold">${p.cat}</span></td>
+                        <td class="p-4 flex items-center gap-2">
+                            <img src="${p.img}" class="w-8 h-10 rounded object-cover">
+                            <span class="font-bold">${p.name}</span>
                         </td>
-                        <td class="p-4">
-                            <p class="text-sm font-bold">${p.user}</p>
-                            <p class="text-[10px] text-gray-500">${p.email}</p>
-                        </td>
-                        <td class="p-4">
-                            <p class="text-xs font-bold">${p.type}</p>
-                            <p class="text-xs text-gray-500 italic max-w-xs">${p.obs || 'Sem obs'}</p>
-                        </td>
-                        <td class="p-4"><span class="px-3 py-1 rounded-full text-xs font-bold ${statusClass}">${p.status}</span></td>
+                        <td class="p-4"><b>${p.user}</b><br><span class="text-[10px] text-gray-400">${p.email}</span></td>
+                        <td class="p-4 text-xs text-gray-500 italic">${p.obs || '-'}</td>
+                        <td class="p-4 text-center"><span class="px-2 py-1 rounded-full text-[10px] font-black ${statusColor}">${p.status}</span></td>
                         <td class="p-4 text-center space-x-1 flex">
-                            <button onclick="updateStatus(${index}, 'Aceito')" class="text-green-500 hover:bg-green-50 p-2 rounded-lg"><i class="fas fa-check"></i></button>
-                            <button onclick="updateStatus(${index}, 'Recusado')" class="text-red-500 hover:bg-red-50 p-2 rounded-lg"><i class="fas fa-times"></i></button>
-                            <button onclick="deleteItem(${index})" class="text-gray-400 hover:text-black p-2 rounded-lg"><i class="fas fa-trash"></i></button>
+                            <button onclick="updateStatus(${index}, 'Aceito')" class="text-green-500 p-1"><i class="fas fa-check"></i></button>
+                            <button onclick="deleteItem(${index})" class="text-red-300 p-1"><i class="fas fa-trash"></i></button>
                         </td>
                     </tr>`;
             });
+            pedidos.reverse();
         }
 
         function updateStatus(index, status) {
-            const pedidos = JSON.parse(localStorage.getItem('meus_pedidos'));
+            const pedidos = JSON.parse(localStorage.getItem('meus_pedidos')).reverse();
             pedidos[index].status = status;
-            localStorage.setItem('meus_pedidos', JSON.stringify(pedidos));
+            localStorage.setItem('meus_pedidos', JSON.stringify(pedidos.reverse()));
             renderAdminTable();
         }
 
         function deleteItem(index) {
-            if(confirm("Excluir este pedido?")) {
-                const pedidos = JSON.parse(localStorage.getItem('meus_pedidos'));
+            if(confirm("Excluir?")) {
+                const pedidos = JSON.parse(localStorage.getItem('meus_pedidos')).reverse();
                 pedidos.splice(index, 1);
-                localStorage.setItem('meus_pedidos', JSON.stringify(pedidos));
+                localStorage.setItem('meus_pedidos', JSON.stringify(pedidos.reverse()));
                 renderAdminTable();
             }
         }
 
+        function showPage(page) {
+            document.getElementById('page-cliente').classList.toggle('hidden', page !== 'cliente');
+            document.getElementById('page-admin').classList.toggle('hidden', page !== 'admin');
+            if(page === 'admin') renderAdminTable();
+        }
+
         function clearAll() {
-            if(confirm("Deseja apagar TODOS os pedidos?")) {
-                localStorage.removeItem('meus_pedidos');
-                renderAdminTable();
-            }
+            if(confirm("Apagar tudo?")) { localStorage.removeItem('meus_pedidos'); renderAdminTable(); }
         }
     </script>
 </body>
