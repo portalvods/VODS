@@ -13,6 +13,7 @@
         .status-concluido { background: #dcfce7; color: #166534; }
         .status-rejeitado { background: #fee2e2; color: #991b1b; }
         .tab-btn.active { border-bottom: 3px solid #2563eb; color: #2563eb; }
+        .error-border { border: 2px solid #ef4444 !important; }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-900 min-h-screen">
@@ -51,9 +52,14 @@
     <main id="page-status" class="container mx-auto px-4 py-8 hidden">
         <div class="max-w-xl mx-auto">
             <h2 class="text-2xl font-bold mb-4 text-center">Acompanhar Meus Pedidos</h2>
-            <div class="flex gap-2 mb-8">
-                <input type="email" id="trackEmail" placeholder="Seu e-mail cadastrado" class="flex-1 p-3 rounded-xl border shadow-md outline-none">
-                <button onclick="trackRequests()" class="bg-blue-600 text-white px-6 rounded-xl font-bold">Buscar</button>
+            <div class="mb-8">
+                <div class="flex gap-2">
+                    <input type="email" id="trackEmail" placeholder="Digite seu e-mail cadastrado" 
+                        class="flex-1 p-3 rounded-xl border shadow-md outline-none transition-all"
+                        oninput="this.classList.remove('error-border'); document.getElementById('trackError').classList.add('hidden')">
+                    <button onclick="trackRequests()" class="bg-blue-600 text-white px-6 rounded-xl font-bold hover:bg-blue-700">Buscar</button>
+                </div>
+                <p id="trackError" class="text-red-500 text-xs mt-2 ml-1 font-bold hidden">⚠️ Insira um e-mail válido para buscar.</p>
             </div>
             <div id="track-results" class="space-y-4"></div>
         </div>
@@ -84,16 +90,22 @@
             <h3 class="text-2xl font-bold text-center mb-6" id="modalTitle"></h3>
             <div class="space-y-4">
                 <input type="text" id="userName" placeholder="Seu Nome" class="w-full p-3 bg-gray-50 border rounded-xl outline-none">
-                <input type="email" id="userEmail" placeholder="Seu E-mail" class="w-full p-3 bg-gray-50 border rounded-xl outline-none">
                 
-                <select id="requestType" class="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                <div class="w-full">
+                    <input type="email" id="userEmail" placeholder="Seu E-mail (Obrigatório)" 
+                        class="w-full p-3 bg-gray-50 border rounded-xl outline-none transition-all"
+                        oninput="this.classList.remove('error-border'); document.getElementById('emailError').classList.add('hidden')">
+                    <p id="emailError" class="text-red-500 text-[10px] mt-1 ml-1 font-bold hidden">⚠️ Por favor, insira um e-mail válido!</p>
+                </div>
+
+                <select id="requestType" class="w-full p-3 bg-gray-50 border rounded-xl outline-none">
                     <option value="Adição">🎬 Solicitar Adição</option>
                     <option value="Conserto">🛠️ Reportar Erro / Conserto</option>
                     <option value="Atualização">🔄 Solicitar Atualização</option>
                 </select>
 
                 <textarea id="userObs" placeholder="Observações (opcional)" class="w-full p-3 bg-gray-50 border rounded-xl outline-none"></textarea>
-                <button onclick="saveToFirebase()" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg hover:bg-blue-700 transition">Enviar Solicitação</button>
+                <button id="btnEnviar" onclick="saveToFirebase()" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg hover:bg-blue-700 transition">Enviar Solicitação</button>
                 <button onclick="closeModal()" class="w-full text-gray-400 text-sm mt-2">Cancelar</button>
             </div>
         </div>
@@ -157,11 +169,25 @@
 
         async function saveToFirebase() {
             const user = document.getElementById('userName').value.trim();
-            const email = document.getElementById('userEmail').value.trim().toLowerCase();
+            const emailField = document.getElementById('userEmail');
+            const email = emailField.value.trim().toLowerCase();
+            const emailError = document.getElementById('emailError');
             const type = document.getElementById('requestType').value;
             const obs = document.getElementById('userObs').value;
             
-            if(!user || !email) return alert("Preencha Nome e E-mail!");
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!email || !emailRegex.test(email)) {
+                emailField.classList.add('error-border');
+                emailError.classList.remove('hidden');
+                emailField.focus();
+                return;
+            }
+
+            if(!user) return alert("Digite seu nome!");
+
+            const btn = document.getElementById('btnEnviar');
+            btn.disabled = true;
+            btn.innerText = "Enviando...";
 
             const novoPedido = {
                 ...currentItem, user, email, type, obs,
@@ -172,19 +198,35 @@
 
             await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify(novoPedido) });
             alert("Pedido enviado com sucesso!");
+            btn.disabled = false;
+            btn.innerText = "Enviar Solicitação";
             closeModal();
         }
 
         async function trackRequests() {
-            const email = document.getElementById('trackEmail').value.trim().toLowerCase();
+            const emailField = document.getElementById('trackEmail');
+            const email = emailField.value.trim().toLowerCase();
+            const trackError = document.getElementById('trackError');
+            
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!email || !emailRegex.test(email)) {
+                emailField.classList.add('error-border');
+                trackError.classList.remove('hidden');
+                emailField.focus();
+                return;
+            }
+
             const res = await fetch(DATABASE_URL);
             const data = await res.json();
             const container = document.getElementById('track-results');
             container.innerHTML = "";
+            
             if(!data) return container.innerHTML = "<p class='text-center text-gray-400'>Nenhum pedido encontrado.</p>";
 
+            let found = false;
             Object.values(data).reverse().forEach(p => {
                 if(p.email === email) {
+                    found = true;
                     container.innerHTML += `
                         <div class="bg-white p-4 rounded-2xl shadow-sm flex items-center gap-4 border-l-4 border-blue-500">
                             <img src="${p.img}" class="w-12 h-16 rounded object-cover">
@@ -196,6 +238,7 @@
                         </div>`;
                 }
             });
+            if(!found) container.innerHTML = "<p class='text-center text-red-500 font-bold'>E-mail não encontrado no sistema.</p>";
         }
 
         async function loadAdmin() {
@@ -211,10 +254,7 @@
                     <tr>
                         <td class="p-4 flex items-center gap-3">
                             <img src="${p.img}" class="w-8 h-10 rounded object-cover">
-                            <div>
-                                <p class="font-bold text-xs">${p.name}</p>
-                                <span class="text-[9px] px-1 bg-blue-50 text-blue-600 font-bold rounded">${p.type}</span>
-                            </div>
+                            <div><p class="font-bold text-xs">${p.name}</p><span class="text-[9px] px-1 bg-blue-50 text-blue-600 font-bold rounded">${p.type}</span></div>
                         </td>
                         <td class="p-4 text-xs"><b>${p.user}</b><br>${p.email}</td>
                         <td class="p-4"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span></td>
