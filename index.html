@@ -18,7 +18,6 @@
 <body class="bg-gray-100 text-gray-900 min-h-screen">
 
     <script>
-        // LINK ATUALIZADO CONFORME SOLICITADO
         const DATABASE_URL = 'https://vods-23763-default-rtdb.firebaseio.com/pedidos.json';
         const API_KEY_TMDB = '9e64130cb366f23a3398f4f7c8e982c0';
         const ADMIN_PASSWORD = 'vods123@';
@@ -39,13 +38,11 @@
 
     <main id="page-cliente" class="container mx-auto px-4 py-8">
         <div class="max-w-2xl mx-auto mb-10 text-center">
-            <h2 class="text-3xl font-bold mb-6">O que deseja assistir?</h2>
-            
+            <h2 class="text-3xl font-bold mb-6">O que deseja solicitar?</h2>
             <div class="flex justify-center space-x-6 mb-8 border-b">
                 <button onclick="setSearchMode('movie')" id="btn-movie" class="tab-btn active pb-2 font-bold uppercase text-xs">Filmes/Séries</button>
                 <button onclick="setSearchMode('tv')" id="btn-tv" class="tab-btn pb-2 font-bold uppercase text-xs text-gray-400">Canais ao Vivo</button>
             </div>
-
             <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="Pesquisar..." class="w-full p-4 shadow-xl rounded-2xl outline-none focus:ring-2 focus:ring-blue-500">
         </div>
         <div id="grid-content" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6"></div>
@@ -55,7 +52,7 @@
         <div class="max-w-xl mx-auto">
             <h2 class="text-2xl font-bold mb-4 text-center">Acompanhar Meus Pedidos</h2>
             <div class="flex gap-2 mb-8">
-                <input type="email" id="trackEmail" placeholder="Digite seu e-mail cadastrado" class="flex-1 p-3 rounded-xl border shadow-md outline-none">
+                <input type="email" id="trackEmail" placeholder="Seu e-mail cadastrado" class="flex-1 p-3 rounded-xl border shadow-md outline-none">
                 <button onclick="trackRequests()" class="bg-blue-600 text-white px-6 rounded-xl font-bold">Buscar</button>
             </div>
             <div id="track-results" class="space-y-4"></div>
@@ -70,7 +67,7 @@
             <table class="w-full text-left border-collapse text-sm">
                 <thead class="bg-gray-50 text-[10px] uppercase font-bold text-gray-400">
                     <tr>
-                        <th class="p-4">Conteúdo</th>
+                        <th class="p-4">Conteúdo / Tipo</th>
                         <th class="p-4">Usuário</th>
                         <th class="p-4">Status</th>
                         <th class="p-4 text-center">Ações</th>
@@ -86,9 +83,16 @@
             <div id="modal-poster" class="w-24 h-36 bg-gray-200 rounded-lg mb-4 mx-auto overflow-hidden shadow-lg"></div>
             <h3 class="text-2xl font-bold text-center mb-6" id="modalTitle"></h3>
             <div class="space-y-4">
-                <input type="text" id="userName" placeholder="Seu Nome" class="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
-                <input type="email" id="userEmail" placeholder="Seu E-mail" class="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
-                <textarea id="userObs" placeholder="Observações (opcional)" class="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                <input type="text" id="userName" placeholder="Seu Nome" class="w-full p-3 bg-gray-50 border rounded-xl outline-none">
+                <input type="email" id="userEmail" placeholder="Seu E-mail" class="w-full p-3 bg-gray-50 border rounded-xl outline-none">
+                
+                <select id="requestType" class="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="Adição">🎬 Solicitar Adição</option>
+                    <option value="Conserto">🛠️ Reportar Erro / Conserto</option>
+                    <option value="Atualização">🔄 Solicitar Atualização</option>
+                </select>
+
+                <textarea id="userObs" placeholder="Observações (opcional)" class="w-full p-3 bg-gray-50 border rounded-xl outline-none"></textarea>
                 <button onclick="saveToFirebase()" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg hover:bg-blue-700 transition">Enviar Solicitação</button>
                 <button onclick="closeModal()" class="w-full text-gray-400 text-sm mt-2">Cancelar</button>
             </div>
@@ -129,14 +133,13 @@
         function searchCanais() {
             const q = document.getElementById('searchInput').value.toLowerCase();
             if(q.length < 2) return;
-            const resultados = [{ name: `Pedir Canal: ${q}`, img: 'https://cdn-icons-png.flaticon.com/512/716/716429.png' }];
-            renderGrid(resultados);
+            renderGrid([{ name: `Pedir Canal: ${q}`, img: 'https://cdn-icons-png.flaticon.com/512/716/716429.png' }]);
         }
 
         function renderGrid(items) {
             const grid = document.getElementById('grid-content');
             grid.innerHTML = items.map(item => `
-                <div class="bg-white p-2 rounded-2xl shadow-sm text-center hover:shadow-md transition">
+                <div class="bg-white p-2 rounded-2xl shadow-sm text-center">
                     <img src="${item.img}" class="w-full h-48 object-cover rounded-xl mb-2">
                     <h4 class="font-bold text-[10px] truncate mb-2 px-1">${item.name}</h4>
                     <button onclick="openModal('${item.name}', '${item.img}')" class="w-full bg-blue-600 text-white py-1 rounded-lg text-[10px] font-black uppercase">Solicitar</button>
@@ -155,19 +158,20 @@
         async function saveToFirebase() {
             const user = document.getElementById('userName').value.trim();
             const email = document.getElementById('userEmail').value.trim().toLowerCase();
+            const type = document.getElementById('requestType').value;
             const obs = document.getElementById('userObs').value;
             
             if(!user || !email) return alert("Preencha Nome e E-mail!");
 
             const novoPedido = {
-                ...currentItem, user, email, obs,
+                ...currentItem, user, email, type, obs,
                 status: 'Pendente',
                 date: new Date().toLocaleString('pt-BR'),
                 timestamp: new Date().getTime()
             };
 
             await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify(novoPedido) });
-            alert("Pedido enviado com sucesso para a nuvem!");
+            alert("Pedido enviado com sucesso!");
             closeModal();
         }
 
@@ -177,16 +181,18 @@
             const data = await res.json();
             const container = document.getElementById('track-results');
             container.innerHTML = "";
-            
             if(!data) return container.innerHTML = "<p class='text-center text-gray-400'>Nenhum pedido encontrado.</p>";
 
             Object.values(data).reverse().forEach(p => {
                 if(p.email === email) {
                     container.innerHTML += `
                         <div class="bg-white p-4 rounded-2xl shadow-sm flex items-center gap-4 border-l-4 border-blue-500">
-                            <img src="${p.img}" class="w-12 h-16 rounded object-cover shadow">
-                            <div class="flex-1 text-sm"><b>${p.name}</b><br><span class="text-[10px] text-gray-400">${p.date}</span></div>
-                            <span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '')}">${p.status}</span>
+                            <img src="${p.img}" class="w-12 h-16 rounded object-cover">
+                            <div class="flex-1 text-sm">
+                                <b>${p.name}</b> <span class="text-[9px] text-blue-500 font-bold">(${p.type})</span><br>
+                                <span class="text-[10px] text-gray-400">${p.date}</span>
+                            </div>
+                            <span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span>
                         </div>`;
                 }
             });
@@ -197,7 +203,6 @@
             const data = await res.json();
             const table = document.getElementById('admin-table');
             table.innerHTML = "";
-            
             if(!data) return;
 
             Object.keys(data).reverse().forEach(id => {
@@ -206,18 +211,21 @@
                     <tr>
                         <td class="p-4 flex items-center gap-3">
                             <img src="${p.img}" class="w-8 h-10 rounded object-cover">
-                            <div><p class="font-bold text-xs">${p.name}</p><span class="text-[9px] text-gray-400">${p.date}</span></div>
+                            <div>
+                                <p class="font-bold text-xs">${p.name}</p>
+                                <span class="text-[9px] px-1 bg-blue-50 text-blue-600 font-bold rounded">${p.type}</span>
+                            </div>
                         </td>
                         <td class="p-4 text-xs"><b>${p.user}</b><br>${p.email}</td>
-                        <td class="p-4"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '')}">${p.status}</span></td>
+                        <td class="p-4"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span></td>
                         <td class="p-4 text-center">
-                            <select onchange="updateFirebaseStatus('${id}', this.value)" class="text-[10px] p-1 border rounded bg-gray-50 outline-none">
+                            <select onchange="updateFirebaseStatus('${id}', this.value)" class="text-[10px] p-1 border rounded outline-none">
                                 <option value="Pendente" ${p.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
                                 <option value="Em Análise" ${p.status === 'Em Análise' ? 'selected' : ''}>Análise</option>
                                 <option value="Concluído" ${p.status === 'Concluído' ? 'selected' : ''}>Concluído</option>
                                 <option value="Rejeitado" ${p.status === 'Rejeitado' ? 'selected' : ''}>Rejeitado</option>
                             </select>
-                            <button onclick="deletePedido('${id}')" class="ml-2 text-red-300 hover:text-red-600"><i class="fas fa-trash"></i></button>
+                            <button onclick="deletePedido('${id}')" class="ml-2 text-red-300"><i class="fas fa-trash"></i></button>
                         </td>
                     </tr>`;
             });
@@ -232,15 +240,14 @@
         }
 
         async function deletePedido(id) {
-            if(confirm("Deseja apagar este pedido permanentemente?")) {
+            if(confirm("Apagar permanentemente?")) {
                 await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' });
                 loadAdmin();
             }
         }
 
         function checkAdminPassword() {
-            if(prompt("Senha do Administrador:") === ADMIN_PASSWORD) showPage('admin');
-            else alert("Acesso negado.");
+            if(prompt("Senha:") === ADMIN_PASSWORD) showPage('admin');
         }
     </script>
 </body>
