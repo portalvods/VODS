@@ -1,22 +1,71 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SOLICITAPLAY - Nuvem Oficial</title>
+    <title>Portal VOD - SOLICITAPLAY</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
-        .status-badge { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 12px; text-transform: uppercase; }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+        
+        :root {
+            --bg-dark: #090e1a;
+            --card-dark: #111827;
+            --accent: #3b82f6;
+        }
+
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: var(--bg-dark); 
+            color: #f3f4f6;
+            margin: 0;
+        }
+
+        .glass { 
+            background: rgba(17, 24, 39, 0.8); 
+            backdrop-filter: blur(16px); 
+            border: 1px solid rgba(255,255,255,0.05); 
+        }
+
+        .status-badge { font-size: 10px; font-weight: 800; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; }
         .status-pendente { background: #fef3c7; color: #92400e; }
         .status-analise { background: #dbeafe; color: #1e40af; }
         .status-concluido { background: #dcfce7; color: #166534; }
         .status-rejeitado { background: #fee2e2; color: #991b1b; }
-        .tab-btn.active { border-bottom: 3px solid #2563eb; color: #2563eb; }
-        .error-border { border: 2px solid #ef4444 !important; }
+
+        .input-dark { 
+            background: #1f2937; 
+            border: 1px solid #374151; 
+            color: white; 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+        }
+
+        .input-dark:focus { 
+            border-color: var(--accent); 
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+            outline: none; 
+        }
+
+        /* Animação de entrada dos cards */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .card-animate { animation: fadeInUp 0.4s ease forwards; }
+
+        /* Estilização Customizada do SweetAlert para Dark Mode */
+        .swal2-popup {
+            background: #111827 !important;
+            color: #fff !important;
+            border-radius: 24px !important;
+            border: 1px solid rgba(255,255,255,0.1) !important;
+        }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-900 min-h-screen">
+<body class="p-4 md:p-10">
 
     <script>
         const DATABASE_URL = 'https://vods-23763-default-rtdb.firebaseio.com/pedidos.json';
@@ -26,67 +75,82 @@
         let searchMode = 'movie';
     </script>
 
-    <nav class="bg-white shadow-md sticky top-0 z-50">
-        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
-            <h1 class="text-xl font-black text-blue-600 tracking-tighter cursor-pointer" onclick="showPage('cliente')">SOLICITA<span class="text-gray-800">PLAY</span></h1>
-            <div class="space-x-4 flex items-center">
-                <button onclick="showPage('cliente')" class="text-xs font-bold uppercase hover:text-blue-600">Início</button>
-                <button onclick="showPage('status')" class="text-xs font-bold uppercase hover:text-blue-600">Meus Pedidos</button>
-                <button onclick="checkAdminPassword()" class="bg-gray-900 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 transition">Admin</button>
-            </div>
+    <header class="container mx-auto flex flex-col md:flex-row justify-between items-center mb-12 gap-6">
+        <div class="text-center md:text-left">
+            <h1 class="text-4xl font-black tracking-tighter text-blue-500">PORTAL<span class="text-white">VOD</span></h1>
+            <p class="text-slate-500 font-medium">Sua central de solicitações oficial</p>
         </div>
-    </nav>
+        <nav class="flex gap-2 glass p-1.5 rounded-2xl shadow-2xl">
+            <button onclick="showPage('cliente')" class="px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition">Início</button>
+            <button onclick="showPage('status')" class="px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition">Meus Pedidos</button>
+            <button onclick="checkAdminPassword()" class="px-6 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-700 transition shadow-lg">Admin</button>
+        </nav>
+    </header>
 
-    <main id="page-cliente" class="container mx-auto px-4 py-8">
-        <div class="max-w-2xl mx-auto mb-10 text-center">
-            <h2 class="text-3xl font-bold mb-6">O que deseja solicitar?</h2>
-            <div class="flex justify-center space-x-6 mb-8 border-b">
-                <button onclick="setSearchMode('movie')" id="btn-movie" class="tab-btn active pb-2 font-bold uppercase text-xs">Filmes/Séries</button>
-                <button onclick="setSearchMode('tv')" id="btn-tv" class="tab-btn pb-2 font-bold uppercase text-xs text-gray-400">Canais ao Vivo</button>
+    <main id="page-cliente" class="container mx-auto max-w-6xl">
+        <div class="glass p-8 rounded-[32px] mb-12 shadow-2xl">
+            <div class="flex gap-6 mb-8 border-b border-slate-800 pb-4">
+                <button onclick="setSearchMode('movie')" id="btn-movie" class="text-blue-500 font-bold border-b-2 border-blue-500 pb-2 transition-all">Filmes & Séries</button>
+                <button onclick="setSearchMode('tv')" id="btn-tv" class="text-slate-500 font-bold pb-2 hover:text-slate-300 transition-all">Canais ao Vivo</button>
             </div>
-            <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="Pesquisar..." class="w-full p-4 shadow-xl rounded-2xl outline-none focus:ring-2 focus:ring-blue-500">
+            <div class="relative group">
+                <i class="fas fa-search absolute left-5 top-5 text-slate-500 group-focus-within:text-blue-500 transition"></i>
+                <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="O que deseja assistir?" 
+                    class="w-full input-dark p-5 pl-14 rounded-2xl text-lg shadow-inner">
+            </div>
         </div>
-        <div id="grid-content" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6"></div>
+        <div id="grid-content" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8"></div>
     </main>
 
-    <main id="page-status" class="container mx-auto px-4 py-8 hidden">
-        <div class="max-w-xl mx-auto">
-            <h2 class="text-2xl font-bold mb-4 text-center">Acompanhar Meus Pedidos</h2>
-            <div class="mb-8 flex gap-2">
-                <input type="email" id="trackEmail" placeholder="E-mail cadastrado" class="flex-1 p-3 rounded-xl border shadow-md outline-none transition-all">
-                <button onclick="trackRequests()" class="bg-blue-600 text-white px-6 rounded-xl font-bold">Buscar</button>
+    <main id="page-status" class="container mx-auto max-w-2xl hidden">
+        <div class="glass p-10 rounded-[32px] shadow-2xl">
+            <h2 class="text-3xl font-black mb-8"><i class="fas fa-satellite-dish text-blue-500 mr-3"></i>Status</h2>
+            <div class="flex gap-3 mb-8">
+                <input type="email" id="trackEmail" placeholder="Digite seu e-mail cadastrado" class="flex-1 input-dark p-4 rounded-2xl">
+                <button onclick="trackRequests()" class="bg-blue-600 hover:bg-blue-700 text-white px-8 rounded-2xl font-bold transition-all shadow-lg active:scale-95">Buscar</button>
             </div>
-            <div id="track-results" class="space-y-4"></div>
-        </div>
-    </main>
-
-    <main id="page-admin" class="container mx-auto px-4 py-8 hidden">
-        <h2 class="text-2xl font-bold text-blue-600 mb-8">Painel Admin</h2>
-        <div class="bg-white rounded-2xl shadow-sm overflow-x-auto">
-            <table class="w-full text-left border-collapse text-sm">
-                <thead class="bg-gray-50 text-[10px] uppercase font-bold text-gray-400">
-                    <tr><th class="p-4">Conteúdo</th><th class="p-4">Usuário</th><th class="p-4">Status</th><th class="p-4 text-center">Ações</th></tr>
-                </thead>
-                <tbody id="admin-table" class="divide-y divide-gray-100"></tbody>
-            </table>
+            <div id="track-results" class="space-y-5"></div>
         </div>
     </main>
 
-    <div id="modal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-[60] backdrop-blur-sm">
-        <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl">
-            <div id="modal-poster" class="w-24 h-36 bg-gray-200 rounded-lg mb-4 mx-auto overflow-hidden shadow-lg"></div>
-            <h3 class="text-2xl font-bold text-center mb-6" id="modalTitle"></h3>
+    <main id="page-admin" class="container mx-auto max-w-6xl hidden">
+        <div class="glass rounded-[32px] overflow-hidden shadow-2xl">
+            <div class="p-8 border-b border-slate-800 bg-slate-900/40">
+                <h2 class="text-2xl font-black">Painel de Controle</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-900/60 text-slate-500 uppercase text-[11px] font-black tracking-widest">
+                        <tr>
+                            <th class="p-6">Conteúdo</th>
+                            <th class="p-6">Solicitante</th>
+                            <th class="p-6">Status</th>
+                            <th class="p-6 text-center">Gestão</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-table" class="divide-y divide-slate-800"></tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <div id="modal" class="fixed inset-0 bg-black/90 hidden flex items-center justify-center p-4 z-50 backdrop-blur-xl">
+        <div class="glass rounded-[40px] max-w-md w-full p-10 shadow-3xl border border-white/10">
+            <div id="modal-poster" class="w-32 h-44 bg-slate-800 rounded-3xl mb-6 mx-auto overflow-hidden shadow-2xl border border-slate-700"></div>
+            <h3 class="text-2xl font-black text-center mb-8 px-4" id="modalTitle"></h3>
+            
             <div class="space-y-4">
-                <input type="text" id="userName" placeholder="Seu Nome" class="w-full p-3 bg-gray-50 border rounded-xl outline-none">
-                <input type="email" id="userEmail" placeholder="Seu E-mail" class="w-full p-3 bg-gray-50 border rounded-xl outline-none">
-                <select id="requestType" class="w-full p-3 bg-gray-50 border rounded-xl outline-none">
+                <input type="text" id="userName" placeholder="Seu Nome" class="w-full input-dark p-4 rounded-2xl">
+                <input type="email" id="userEmail" placeholder="Seu E-mail" class="w-full input-dark p-4 rounded-2xl">
+                <select id="requestType" class="w-full input-dark p-4 rounded-2xl appearance-none">
                     <option value="Adição">🎬 Solicitar Adição</option>
-                    <option value="Conserto">🛠️ Reportar Erro / Conserto</option>
+                    <option value="Conserto">🛠️ Relatar Problema</option>
                     <option value="Atualização">🔄 Solicitar Atualização</option>
                 </select>
-                <textarea id="userObs" placeholder="Observações (opcional)" class="w-full p-3 bg-gray-50 border rounded-xl outline-none"></textarea>
-                <button id="btnEnviar" onclick="saveToFirebase()" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold">Enviar Pedido</button>
-                <button onclick="closeModal()" class="w-full text-gray-400 text-sm mt-2">Cancelar</button>
+                <textarea id="userObs" placeholder="Observações..." class="w-full input-dark p-4 rounded-2xl h-24 resize-none"></textarea>
+                
+                <button id="btnEnviar" onclick="saveToFirebase()" class="w-full py-5 bg-blue-600 hover:bg-blue-700 text-white rounded-[24px] font-black text-lg shadow-xl transition-all active:scale-95 mt-4">ENVIAR SOLICITAÇÃO</button>
+                <button onclick="closeModal()" class="w-full text-slate-500 font-bold text-sm mt-4 hover:text-white transition">VOLTAR</button>
             </div>
         </div>
     </div>
@@ -100,8 +164,8 @@
 
         function setSearchMode(mode) {
             searchMode = mode;
-            document.getElementById('btn-movie').className = `tab-btn pb-2 font-bold uppercase text-xs ${mode === 'movie' ? 'active text-blue-600' : 'text-gray-400'}`;
-            document.getElementById('btn-tv').className = `tab-btn pb-2 font-bold uppercase text-xs ${mode === 'tv' ? 'active text-blue-600' : 'text-gray-400'}`;
+            document.getElementById('btn-movie').className = mode === 'movie' ? 'text-blue-500 font-bold border-b-2 border-blue-500 pb-2' : 'text-slate-500 font-bold pb-2';
+            document.getElementById('btn-tv').className = mode === 'tv' ? 'text-blue-500 font-bold border-b-2 border-blue-500 pb-2' : 'text-slate-500 font-bold pb-2';
             document.getElementById('grid-content').innerHTML = '';
         }
 
@@ -110,26 +174,25 @@
             if(q.length < 3) return;
             const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${API_KEY_TMDB}&language=pt-BR&query=${q}`);
             const data = await res.json();
-            renderGrid(data.results.map(i => ({
+            renderGrid(data.results.filter(i => i.poster_path).map(i => ({
                 name: (i.title || i.name).replace(/'/g, ""),
-                img: i.poster_path ? `https://image.tmdb.org/t/p/w500${i.poster_path}` : 'https://via.placeholder.com/500x750?text=Sem+Poster'
+                img: `https://image.tmdb.org/t/p/w500${i.poster_path}`
             })));
         }
 
         function handleSearch() { if (searchMode === 'movie') searchTMDB(); else searchCanais(); }
-        function searchCanais() {
-            const q = document.getElementById('searchInput').value.toLowerCase();
-            if(q.length < 2) return;
-            renderGrid([{ name: `Canal: ${q}`, img: 'https://cdn-icons-png.flaticon.com/512/716/716429.png' }]);
-        }
 
         function renderGrid(items) {
             const grid = document.getElementById('grid-content');
-            grid.innerHTML = items.map(item => `
-                <div class="bg-white p-2 rounded-2xl shadow-sm text-center">
-                    <img src="${item.img}" class="w-full h-48 object-cover rounded-xl mb-2">
-                    <h4 class="font-bold text-[10px] truncate mb-2 px-1">${item.name}</h4>
-                    <button onclick="openModal('${item.name}', '${item.img}')" class="w-full bg-blue-600 text-white py-1 rounded-lg text-[10px] font-black uppercase">Solicitar</button>
+            grid.innerHTML = items.map((item, idx) => `
+                <div class="glass p-4 rounded-[32px] hover:border-blue-500/50 transition-all group card-animate" style="animation-delay: ${idx * 0.05}s">
+                    <div class="relative overflow-hidden rounded-2xl mb-4">
+                        <img src="${item.img}" class="w-full h-64 object-cover group-hover:scale-110 transition duration-500">
+                        <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                             <button onclick="openModal('${item.name}', '${item.img}')" class="w-full bg-white text-black py-2 rounded-xl text-[10px] font-black uppercase">Solicitar Agora</button>
+                        </div>
+                    </div>
+                    <h4 class="font-bold text-sm truncate text-slate-200">${item.name}</h4>
                 </div>`).join('');
         }
 
@@ -147,7 +210,15 @@
             const email = document.getElementById('userEmail').value.trim().toLowerCase();
             const type = document.getElementById('requestType').value;
             const obs = document.getElementById('userObs').value;
-            if(!user || !email) return alert("Preencha Nome e E-mail!");
+
+            if(!user || !email) {
+                Swal.fire({ icon: 'warning', title: 'Campos Vazios', text: 'Preencha nome e e-mail para continuar.' });
+                return;
+            }
+
+            const btn = document.getElementById('btnEnviar');
+            btn.disabled = true;
+            btn.innerText = "VERIFICANDO...";
 
             const resData = await fetch(DATABASE_URL);
             const data = await resData.json();
@@ -157,12 +228,33 @@
                 const pedidosDoUsuario = Object.values(data).filter(p => p.email === email);
                 if (pedidosDoUsuario.length > 0) {
                     const ultimo = pedidosDoUsuario.sort((a, b) => b.timestamp - a.timestamp)[0];
-                    if (agora - ultimo.timestamp < 24 * 60 * 60 * 1000) return alert("Apenas um pedido por dia.");
+                    if (agora - ultimo.timestamp < 24 * 60 * 60 * 1000) {
+                        // NOVA ANIMAÇÃO DE BLOQUEIO
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Limite Atingido!',
+                            text: 'Você já fez um pedido hoje. Para manter a organização, permitimos apenas 1 pedido a cada 24 horas.',
+                            confirmButtonColor: '#3b82f6'
+                        });
+                        btn.disabled = false; btn.innerText = "ENVIAR SOLICITAÇÃO";
+                        return;
+                    }
                 }
             }
 
             await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify({ ...currentItem, user, email, type, obs, status: 'Pendente', date: new Date().toLocaleString('pt-BR'), timestamp: agora }) });
-            alert("Enviado!"); closeModal();
+            
+            // NOVA ANIMAÇÃO DE SUCESSO
+            Swal.fire({
+                icon: 'success',
+                title: 'Pedido Enviado!',
+                text: 'Sua solicitação foi recebida e entrará em análise em breve.',
+                timer: 3000,
+                showConfirmButton: false
+            });
+
+            btn.disabled = false; btn.innerText = "ENVIAR SOLICITAÇÃO";
+            closeModal();
         }
 
         async function trackRequests() {
@@ -175,19 +267,15 @@
 
             Object.values(data).reverse().forEach(p => {
                 if(p.email === email) {
-                    let feedbackBtn = '';
-                    // LOGICA CORRIGIDA: Se tiver motivo salvo, mostra o botão
-                    if (p.motivo && p.motivo.trim() !== "") {
-                        const corBotao = p.status === 'Rejeitado' ? 'text-red-600' : 'text-green-600';
-                        const labelBotao = p.status === 'Rejeitado' ? 'VER MOTIVO' : 'VER MENSAGEM';
-                        feedbackBtn = `<br><button onclick="alert('${p.motivo.replace(/'/g, "\\'")}')" class="text-[9px] ${corBotao} font-bold underline mt-1 italic leading-tight uppercase">${labelBotao}</button>`;
-                    }
-
+                    let feedback = p.motivo ? `<button onclick="Swal.fire('Mensagem do Admin', '${p.motivo.replace(/'/g, "\\'")}', 'info')" class="text-[10px] text-blue-400 font-bold underline mt-2 block uppercase">Ver Resposta</button>` : '';
                     container.innerHTML += `
-                        <div class="bg-white p-4 rounded-2xl shadow-sm flex items-center gap-4 border-l-4 border-blue-500">
-                            <img src="${p.img}" class="w-12 h-16 rounded object-cover">
-                            <div class="flex-1 text-sm"><b>${p.name}</b> <span class="text-[9px] text-blue-500 font-bold">(${p.type})</span><br><span class="text-[10px] text-gray-400">${p.date}</span></div>
-                            <div class="text-right"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span>${feedbackBtn}</div>
+                        <div class="glass p-5 rounded-3xl flex items-center gap-5 card-animate">
+                            <img src="${p.img}" class="w-14 h-20 rounded-xl object-cover shadow-xl">
+                            <div class="flex-1">
+                                <b class="text-white text-base">${p.name}</b><br>
+                                <span class="text-slate-500 text-xs">${p.date}</span>
+                            </div>
+                            <div class="text-right"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span>${feedback}</div>
                         </div>`;
                 }
             });
@@ -201,31 +289,64 @@
             if(!data) return;
             Object.keys(data).reverse().forEach(id => {
                 const p = data[id];
-                table.innerHTML += `<tr><td class="p-4 flex gap-3"><img src="${p.img}" class="w-8 h-10 rounded object-cover"><div><p class="font-bold text-xs">${p.name}</p><span class="text-[9px] px-1 bg-blue-50 text-blue-600 font-bold rounded">${p.type}</span></div></td><td class="p-4 text-xs"><b>${p.user}</b><br>${p.email}</td><td class="p-4"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span></td><td class="p-4 text-center"><select onchange="handleStatusChange('${id}', this.value)" class="text-[10px] p-1 border rounded"><option value="Pendente" ${p.status === 'Pendente' ? 'selected' : ''}>Pendente</option><option value="Em Análise" ${p.status === 'Em Análise' ? 'selected' : ''}>Análise</option><option value="Concluído" ${p.status === 'Concluído' ? 'selected' : ''}>Concluído</option><option value="Rejeitado" ${p.status === 'Rejeitado' ? 'selected' : ''}>Rejeitado</option></select><button onclick="deletePedido('${id}')" class="ml-2 text-red-300"><i class="fas fa-trash"></i></button></td></tr>`;
+                table.innerHTML += `
+                    <tr class="hover:bg-white/5 transition">
+                        <td class="p-6 flex gap-4 items-center">
+                            <img src="${p.img}" class="w-12 h-16 rounded-xl object-cover">
+                            <div><p class="font-bold text-sm">${p.name}</p><span class="text-[10px] text-blue-500 font-black">${p.type}</span></div>
+                        </td>
+                        <td class="p-6 text-xs text-slate-400"><b>${p.user}</b><br>${p.email}</td>
+                        <td class="p-6"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span></td>
+                        <td class="p-6 text-center">
+                            <select onchange="handleStatusChange('${id}', this.value)" class="text-xs p-2 bg-slate-800 border-none rounded-xl">
+                                <option value="Pendente" ${p.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
+                                <option value="Em Análise" ${p.status === 'Em Análise' ? 'selected' : ''}>Análise</option>
+                                <option value="Concluído" ${p.status === 'Concluído' ? 'selected' : ''}>Concluído</option>
+                                <option value="Rejeitado" ${p.status === 'Rejeitado' ? 'selected' : ''}>Rejeitado</option>
+                            </select>
+                        </td>
+                    </tr>`;
             });
         }
 
         async function handleStatusChange(id, newStatus) {
             let motivo = "";
             if(newStatus === 'Rejeitado') {
-                const choice = prompt("1. Já existe/Sem erro\n2. Pouca Relevância\n3. Sem mídia\nOu digite:");
-                if(choice === "1") motivo = "Conteúdo Já Existente ou sem Problema Técnico na Mídia.";
-                else if(choice === "2") motivo = "Conteúdo de Pouca Relevância ao Público.";
-                else if(choice === "3") motivo = "Conteúdo sem Mídia disponível no momento.";
-                else if(choice) motivo = choice;
-                else return loadAdmin();
+                const { value: text } = await Swal.fire({
+                    title: 'Motivo da Rejeição',
+                    input: 'select',
+                    inputOptions: {
+                        '1': 'Já existe no servidor',
+                        '2': 'Pouca relevância',
+                        '3': 'Sem mídia disponível',
+                        'custom': 'Outro motivo...'
+                    }
+                });
+                if(text === '1') motivo = "O conteúdo solicitado já está disponível ou não apresenta falhas técnicas.";
+                else if(text === '2') motivo = "O material não atende de forma significativa a demanda do público.";
+                else if(text === '3') motivo = "Conteúdo sem mídia disponível no momento.";
+                else if(text === 'custom') {
+                    const { value: customText } = await Swal.fire({ title: 'Escreva o motivo', input: 'text' });
+                    motivo = customText;
+                }
             } else if(newStatus === 'Concluído') {
-                const msg = "Olá! O conteúdo solicitado já está disponível. Aproveite!";
-                const choice = prompt("Mensagem de sucesso:", msg);
-                if (choice === null) return loadAdmin();
-                motivo = choice || msg;
+                motivo = "Seu pedido foi atendido e já está disponível!";
             }
             await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'PATCH', body: JSON.stringify({ status: newStatus, motivo: motivo }) });
             loadAdmin();
         }
 
-        async function deletePedido(id) { if(confirm("Apagar?")) { await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' }); loadAdmin(); } }
-        function checkAdminPassword() { if(prompt("Senha:") === ADMIN_PASSWORD) showPage('admin'); }
+        function checkAdminPassword() {
+            Swal.fire({
+                title: 'Acesso Restrito',
+                input: 'password',
+                inputPlaceholder: 'Senha de administrador',
+                showCancelButton: true
+            }).then((result) => {
+                if(result.value === ADMIN_PASSWORD) showPage('admin');
+                else if(result.value) Swal.fire('Erro', 'Senha Incorreta', 'error');
+            });
+        }
     </script>
 </body>
 </html>
