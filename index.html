@@ -3,19 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SOLICITAPLAY - Filmes & Status</title>
+    <title>SOLICITAPLAY - Nuvem Oficial</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        .tab-btn.active { border-bottom: 3px solid #2563eb; color: #2563eb; }
         .status-badge { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 12px; text-transform: uppercase; }
         .status-pendente { background: #fef3c7; color: #92400e; }
         .status-analise { background: #dbeafe; color: #1e40af; }
         .status-concluido { background: #dcfce7; color: #166534; }
         .status-rejeitado { background: #fee2e2; color: #991b1b; }
+        .tab-btn.active { border-bottom: 3px solid #2563eb; color: #2563eb; }
     </style>
 </head>
 <body class="bg-gray-100 text-gray-900 min-h-screen">
+
+    <script>
+        // LINK ATUALIZADO CONFORME SOLICITADO
+        const DATABASE_URL = 'https://vods-23763-default-rtdb.firebaseio.com/pedidos.json';
+        const API_KEY_TMDB = '9e64130cb366f23a3398f4f7c8e982c0';
+        const ADMIN_PASSWORD = 'vods123@';
+        let currentItem = {};
+        let searchMode = 'movie';
+    </script>
 
     <nav class="bg-white shadow-md sticky top-0 z-50">
         <div class="container mx-auto px-4 py-3 flex justify-between items-center">
@@ -23,22 +32,21 @@
             <div class="space-x-4 flex items-center">
                 <button onclick="showPage('cliente')" class="text-xs font-bold uppercase hover:text-blue-600">Início</button>
                 <button onclick="showPage('status')" class="text-xs font-bold uppercase hover:text-blue-600">Meus Pedidos</button>
-                <button onclick="checkAdminPassword()" class="bg-gray-900 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 transition">Painel Admin</button>
+                <button onclick="checkAdminPassword()" class="bg-gray-900 text-white px-3 py-2 rounded-lg text-xs font-bold hover:bg-blue-700 transition">Admin</button>
             </div>
         </div>
     </nav>
 
     <main id="page-cliente" class="container mx-auto px-4 py-8">
         <div class="max-w-2xl mx-auto mb-10 text-center">
-            <h2 class="text-3xl font-bold mb-6">O que deseja solicitar?</h2>
+            <h2 class="text-3xl font-bold mb-6">O que deseja assistir?</h2>
+            
             <div class="flex justify-center space-x-6 mb-8 border-b">
                 <button onclick="setSearchMode('movie')" id="btn-movie" class="tab-btn active pb-2 font-bold uppercase text-xs">Filmes/Séries</button>
                 <button onclick="setSearchMode('tv')" id="btn-tv" class="tab-btn pb-2 font-bold uppercase text-xs text-gray-400">Canais ao Vivo</button>
             </div>
-            <div class="relative">
-                <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="Pesquisar..." class="w-full pl-12 pr-4 py-4 border-none shadow-xl rounded-2xl focus:ring-2 focus:ring-blue-500 outline-none">
-                <i class="fas fa-search absolute left-5 top-5 text-gray-400"></i>
-            </div>
+
+            <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="Pesquisar..." class="w-full p-4 shadow-xl rounded-2xl outline-none focus:ring-2 focus:ring-blue-500">
         </div>
         <div id="grid-content" class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-6"></div>
     </main>
@@ -47,77 +55,51 @@
         <div class="max-w-xl mx-auto">
             <h2 class="text-2xl font-bold mb-4 text-center">Acompanhar Meus Pedidos</h2>
             <div class="flex gap-2 mb-8">
-                <input type="email" id="trackEmail" placeholder="Digite o e-mail usado no pedido" class="flex-1 p-3 rounded-xl border-none shadow-md outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="email" id="trackEmail" placeholder="Digite seu e-mail cadastrado" class="flex-1 p-3 rounded-xl border shadow-md outline-none">
                 <button onclick="trackRequests()" class="bg-blue-600 text-white px-6 rounded-xl font-bold">Buscar</button>
             </div>
-            <div id="track-results" class="space-y-4">
-                <p class="text-center text-gray-400">Digite seu e-mail para ver o andamento das suas solicitações.</p>
-            </div>
+            <div id="track-results" class="space-y-4"></div>
         </div>
     </main>
 
     <main id="page-admin" class="container mx-auto px-4 py-8 hidden">
         <div class="flex justify-between items-center mb-8">
             <h2 class="text-2xl font-bold text-blue-600">Painel Administrativo</h2>
-            <button onclick="clearAll()" class="text-red-500 text-xs font-bold uppercase tracking-widest hover:underline">Limpar Histórico</button>
         </div>
         <div class="bg-white rounded-2xl shadow-sm overflow-x-auto">
-            <table class="w-full text-left border-collapse">
-                <thead class="bg-gray-50 text-gray-400 text-[10px] uppercase font-bold">
+            <table class="w-full text-left border-collapse text-sm">
+                <thead class="bg-gray-50 text-[10px] uppercase font-bold text-gray-400">
                     <tr>
                         <th class="p-4">Conteúdo</th>
-                        <th class="p-4">Solicitante</th>
-                        <th class="p-4">Obs</th>
-                        <th class="p-4">Status Atual</th>
-                        <th class="p-4 text-center">Mudar Status / Ações</th>
+                        <th class="p-4">Usuário</th>
+                        <th class="p-4">Status</th>
+                        <th class="p-4 text-center">Ações</th>
                     </tr>
                 </thead>
-                <tbody id="admin-table" class="divide-y divide-gray-100 text-sm"></tbody>
+                <tbody id="admin-table" class="divide-y divide-gray-100"></tbody>
             </table>
         </div>
     </main>
 
     <div id="modal" class="fixed inset-0 bg-black/60 hidden flex items-center justify-center p-4 z-[60] backdrop-blur-sm">
-        <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl overflow-y-auto max-h-[90vh]">
-            <div id="modal-poster" class="w-24 h-36 bg-gray-200 rounded-lg mb-4 mx-auto overflow-hidden shadow-lg flex items-center justify-center"></div>
+        <div class="bg-white rounded-3xl max-w-md w-full p-8 shadow-2xl">
+            <div id="modal-poster" class="w-24 h-36 bg-gray-200 rounded-lg mb-4 mx-auto overflow-hidden shadow-lg"></div>
             <h3 class="text-2xl font-bold text-center mb-6" id="modalTitle"></h3>
             <div class="space-y-4">
-                <input type="text" id="userName" placeholder="Seu Nome" class="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:border-blue-500">
-                <input type="email" id="userEmail" placeholder="Seu E-mail (Obrigatório)" class="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:border-blue-500">
-                <select id="requestType" class="w-full p-3 bg-gray-50 border rounded-xl outline-none">
-                    <option value="Adição">🎬 Solicitar Adição</option>
-                    <option value="Conserto">🛠️ Reportar Erro</option>
-                </select>
-                <textarea id="userObs" rows="2" placeholder="Observações..." class="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:border-blue-500"></textarea>
-                <button onclick="saveRequest()" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg hover:bg-blue-700 transition">Enviar Solicitação</button>
-                <button onclick="closeModal()" class="w-full text-gray-400 text-sm font-medium mt-2">Cancelar</button>
+                <input type="text" id="userName" placeholder="Seu Nome" class="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                <input type="email" id="userEmail" placeholder="Seu E-mail" class="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500">
+                <textarea id="userObs" placeholder="Observações (opcional)" class="w-full p-3 bg-gray-50 border rounded-xl outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                <button onclick="saveToFirebase()" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg hover:bg-blue-700 transition">Enviar Solicitação</button>
+                <button onclick="closeModal()" class="w-full text-gray-400 text-sm mt-2">Cancelar</button>
             </div>
         </div>
     </div>
 
     <script>
-        const API_KEY = '9e64130cb366f23a3398f4f7c8e982c0';
-        const ADMIN_PASSWORD = 'vods123@'; 
-        let currentItem = {};
-        let searchMode = 'movie'; 
-
-        const canaisFamosos = [
-            { name: "Globo", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/af/TV_Globo_logo.svg/1024px-TV_Globo_logo.svg.png" },
-            { name: "SporTV", img: "https://upload.wikimedia.org/wikipedia/pt/2/23/Logo_SporTV_2021.png" },
-            { name: "HBO", img: "https://upload.wikimedia.org/wikipedia/commons/thumb/d/de/HBO_logo.svg/1200px-HBO_logo.svg.png" }
-        ];
-
-        function checkAdminPassword() {
-            const pass = prompt("Senha do Admin:");
-            if (pass === ADMIN_PASSWORD) showPage('admin');
-            else if (pass !== null) alert("Senha incorreta!");
-        }
-
         function showPage(page) {
-            document.getElementById('page-cliente').classList.toggle('hidden', page !== 'cliente');
-            document.getElementById('page-status').classList.toggle('hidden', page !== 'status');
-            document.getElementById('page-admin').classList.toggle('hidden', page !== 'admin');
-            if(page === 'admin') renderAdminTable();
+            document.querySelectorAll('main').forEach(m => m.classList.add('hidden'));
+            document.getElementById(`page-${page}`).classList.remove('hidden');
+            if(page === 'admin') loadAdmin();
         }
 
         function setSearchMode(mode) {
@@ -134,40 +116,35 @@
         }
 
         async function searchTMDB() {
-            const query = document.getElementById('searchInput').value;
-            if(query.length < 3) return;
-            const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${API_KEY}&language=pt-BR&query=${query}`);
+            const q = document.getElementById('searchInput').value;
+            if(q.length < 3) return;
+            const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${API_KEY_TMDB}&language=pt-BR&query=${q}`);
             const data = await res.json();
-            renderGrid(data.results.map(i => ({ 
-                name: (i.title || i.name).replace(/'/g, ""), 
-                img: i.poster_path ? `https://image.tmdb.org/t/p/w500${i.poster_path}` : 'https://via.placeholder.com/500x750?text=Sem+Poster',
-                cat: 'Filme/Série'
+            renderGrid(data.results.map(i => ({
+                name: (i.title || i.name).replace(/'/g, ""),
+                img: i.poster_path ? `https://image.tmdb.org/t/p/w500${i.poster_path}` : 'https://via.placeholder.com/500x750?text=Sem+Poster'
             })));
         }
 
         function searchCanais() {
-            const query = document.getElementById('searchInput').value.toLowerCase();
-            if(query.length < 2) return;
-            const resultados = canaisFamosos.filter(c => c.name.toLowerCase().includes(query)).map(c => ({ ...c, cat: 'Canal TV' }));
-            resultados.push({ name: `Pedir: ${query}`, img: 'https://cdn-icons-png.flaticon.com/512/716/716429.png', cat: 'Canal TV' });
+            const q = document.getElementById('searchInput').value.toLowerCase();
+            if(q.length < 2) return;
+            const resultados = [{ name: `Pedir Canal: ${q}`, img: 'https://cdn-icons-png.flaticon.com/512/716/716429.png' }];
             renderGrid(resultados);
         }
 
         function renderGrid(items) {
             const grid = document.getElementById('grid-content');
-            grid.innerHTML = '';
-            items.forEach(item => {
-                grid.innerHTML += `
-                    <div class="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition transform hover:-translate-y-1 p-2">
-                        <img src="${item.img}" class="w-full h-56 object-cover rounded-xl mb-2">
-                        <h4 class="font-bold text-[11px] truncate mb-2 px-1">${item.name}</h4>
-                        <button onclick="openModal('${item.name}', '${item.cat}', '${item.img}')" class="w-full bg-blue-600 text-white py-2 rounded-lg text-[10px] font-black uppercase">Solicitar</button>
-                    </div>`;
-            });
+            grid.innerHTML = items.map(item => `
+                <div class="bg-white p-2 rounded-2xl shadow-sm text-center hover:shadow-md transition">
+                    <img src="${item.img}" class="w-full h-48 object-cover rounded-xl mb-2">
+                    <h4 class="font-bold text-[10px] truncate mb-2 px-1">${item.name}</h4>
+                    <button onclick="openModal('${item.name}', '${item.img}')" class="w-full bg-blue-600 text-white py-1 rounded-lg text-[10px] font-black uppercase">Solicitar</button>
+                </div>`).join('');
         }
 
-        function openModal(name, cat, img) {
-            currentItem = { name, cat, img };
+        function openModal(name, img) {
+            currentItem = { name, img };
             document.getElementById('modalTitle').innerText = name;
             document.getElementById('modal-poster').innerHTML = `<img src="${img}" class="w-full h-full object-cover">`;
             document.getElementById('modal').classList.remove('hidden');
@@ -175,96 +152,95 @@
 
         function closeModal() { document.getElementById('modal').classList.add('hidden'); }
 
-        function saveRequest() {
+        async function saveToFirebase() {
             const user = document.getElementById('userName').value.trim();
             const email = document.getElementById('userEmail').value.trim().toLowerCase();
-            const type = document.getElementById('requestType').value;
             const obs = document.getElementById('userObs').value;
             
             if(!user || !email) return alert("Preencha Nome e E-mail!");
-            const pedidos = JSON.parse(localStorage.getItem('meus_pedidos') || '[]');
-            const agora = new Date().getTime();
-            
-            if (pedidos.find(p => p.email === email && (agora - p.timestamp < 86400000))) return alert("Apenas 1 pedido por dia!");
 
-            pedidos.push({ ...currentItem, user, email, type, obs, status: 'Pendente', date: new Date().toLocaleString('pt-BR'), timestamp: agora });
-            localStorage.setItem('meus_pedidos', JSON.stringify(pedidos));
-            alert("Sucesso! Acompanhe na aba 'Meus Pedidos'.");
+            const novoPedido = {
+                ...currentItem, user, email, obs,
+                status: 'Pendente',
+                date: new Date().toLocaleString('pt-BR'),
+                timestamp: new Date().getTime()
+            };
+
+            await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify(novoPedido) });
+            alert("Pedido enviado com sucesso para a nuvem!");
             closeModal();
         }
 
-        // FUNÇÃO DE RASTREIO DO CLIENTE
-        function trackRequests() {
+        async function trackRequests() {
             const email = document.getElementById('trackEmail').value.trim().toLowerCase();
-            const pedidos = JSON.parse(localStorage.getItem('meus_pedidos') || '[]');
-            const meus = pedidos.filter(p => p.email === email);
+            const res = await fetch(DATABASE_URL);
+            const data = await res.json();
             const container = document.getElementById('track-results');
+            container.innerHTML = "";
             
-            if(meus.length === 0) {
-                container.innerHTML = `<p class="text-center text-red-500 font-bold">Nenhum pedido encontrado para este e-mail.</p>`;
-                return;
-            }
+            if(!data) return container.innerHTML = "<p class='text-center text-gray-400'>Nenhum pedido encontrado.</p>";
 
-            container.innerHTML = meus.reverse().map(p => `
-                <div class="bg-white p-4 rounded-2xl shadow-sm flex items-center gap-4 border-l-4 ${p.status === 'Concluído' ? 'border-green-500' : 'border-blue-500'}">
-                    <img src="${p.img}" class="w-12 h-16 rounded object-cover shadow">
-                    <div class="flex-1">
-                        <h4 class="font-bold text-sm">${p.name}</h4>
-                        <p class="text-[10px] text-gray-400">${p.date} • ${p.cat}</p>
-                    </div>
-                    <span class="status-badge status-${p.status.toLowerCase().replace(' á', 'a').replace('í', 'i').replace('ú', 'u')}">${p.status}</span>
-                </div>
-            `).join('');
+            Object.values(data).reverse().forEach(p => {
+                if(p.email === email) {
+                    container.innerHTML += `
+                        <div class="bg-white p-4 rounded-2xl shadow-sm flex items-center gap-4 border-l-4 border-blue-500">
+                            <img src="${p.img}" class="w-12 h-16 rounded object-cover shadow">
+                            <div class="flex-1 text-sm"><b>${p.name}</b><br><span class="text-[10px] text-gray-400">${p.date}</span></div>
+                            <span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '')}">${p.status}</span>
+                        </div>`;
+                }
+            });
         }
 
-        function renderAdminTable() {
-            const pedidos = JSON.parse(localStorage.getItem('meus_pedidos') || '[]');
+        async function loadAdmin() {
+            const res = await fetch(DATABASE_URL);
+            const data = await res.json();
             const table = document.getElementById('admin-table');
-            table.innerHTML = '';
+            table.innerHTML = "";
             
-            pedidos.slice().reverse().forEach((p, index) => {
-                const realIndex = pedidos.length - 1 - index;
+            if(!data) return;
+
+            Object.keys(data).reverse().forEach(id => {
+                const p = data[id];
                 table.innerHTML += `
                     <tr>
-                        <td class="p-4 flex items-center gap-2">
+                        <td class="p-4 flex items-center gap-3">
                             <img src="${p.img}" class="w-8 h-10 rounded object-cover">
-                            <div><span class="text-[9px] uppercase text-blue-500 font-bold">${p.cat}</span><p class="font-bold">${p.name}</p></div>
+                            <div><p class="font-bold text-xs">${p.name}</p><span class="text-[9px] text-gray-400">${p.date}</span></div>
                         </td>
-                        <td class="p-4"><b>${p.user}</b><br><span class="text-[10px] text-gray-400">${p.email}</span></td>
-                        <td class="p-4 text-xs text-gray-500 italic max-w-[150px] truncate">${p.obs || '-'}</td>
-                        <td class="p-4"><span class="status-badge status-${p.status.toLowerCase().replace(' á', 'a').replace('í', 'i').replace('ú', 'u')}">${p.status}</span></td>
+                        <td class="p-4 text-xs"><b>${p.user}</b><br>${p.email}</td>
+                        <td class="p-4"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '')}">${p.status}</span></td>
                         <td class="p-4 text-center">
-                            <select onchange="updateStatus(${realIndex}, this.value)" class="text-[10px] p-1 border rounded bg-gray-50 outline-none">
-                                <option disabled selected>Mudar para...</option>
-                                <option value="Pendente">Pendente</option>
-                                <option value="Em Análise">Em Análise</option>
-                                <option value="Concluído">Concluído</option>
-                                <option value="Rejeitado">Rejeitado</option>
+                            <select onchange="updateFirebaseStatus('${id}', this.value)" class="text-[10px] p-1 border rounded bg-gray-50 outline-none">
+                                <option value="Pendente" ${p.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
+                                <option value="Em Análise" ${p.status === 'Em Análise' ? 'selected' : ''}>Análise</option>
+                                <option value="Concluído" ${p.status === 'Concluído' ? 'selected' : ''}>Concluído</option>
+                                <option value="Rejeitado" ${p.status === 'Rejeitado' ? 'selected' : ''}>Rejeitado</option>
                             </select>
-                            <button onclick="deleteItem(${realIndex})" class="ml-2 text-red-300 hover:text-red-600"><i class="fas fa-trash"></i></button>
+                            <button onclick="deletePedido('${id}')" class="ml-2 text-red-300 hover:text-red-600"><i class="fas fa-trash"></i></button>
                         </td>
                     </tr>`;
             });
         }
 
-        function updateStatus(index, newStatus) {
-            const pedidos = JSON.parse(localStorage.getItem('meus_pedidos'));
-            pedidos[index].status = newStatus;
-            localStorage.setItem('meus_pedidos', JSON.stringify(pedidos));
-            renderAdminTable();
+        async function updateFirebaseStatus(id, newStatus) {
+            await fetch(DATABASE_URL.replace('.json', `/${id}.json`), {
+                method: 'PATCH',
+                body: JSON.stringify({ status: newStatus })
+            });
+            loadAdmin();
         }
 
-        function deleteItem(index) {
-            if(confirm("Excluir?")) {
-                const pedidos = JSON.parse(localStorage.getItem('meus_pedidos'));
-                pedidos.splice(index, 1);
-                localStorage.setItem('meus_pedidos', JSON.stringify(pedidos));
-                renderAdminTable();
+        async function deletePedido(id) {
+            if(confirm("Deseja apagar este pedido permanentemente?")) {
+                await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' });
+                loadAdmin();
             }
         }
 
-        function clearAll() {
-            if(confirm("Apagar tudo?")) { localStorage.removeItem('meus_pedidos'); renderAdminTable(); }
+        function checkAdminPassword() {
+            if(prompt("Senha do Administrador:") === ADMIN_PASSWORD) showPage('admin');
+            else alert("Acesso negado.");
         }
     </script>
 </body>
