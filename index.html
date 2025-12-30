@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal VOD - Dashboard</title>
+    <title>Portal VOD - Ultra Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
         :root { --bg-dark: #090e1a; --card-dark: #111827; --accent: #3b82f6; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: #f3f4f6; margin: 0; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: #f3f4f6; margin: 0; overflow-x: hidden; }
         .glass { background: rgba(17, 24, 39, 0.8); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.05); }
         .status-badge { font-size: 10px; font-weight: 800; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; }
         .status-pendente { background: #fef3c7; color: #92400e; }
@@ -19,9 +19,11 @@
         .status-rejeitado { background: #fee2e2; color: #991b1b; }
         .input-dark { background: #1f2937; border: 1px solid #374151; color: white; transition: all 0.3s; }
         .input-dark:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); outline: none; }
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .card-animate { animation: fadeInUp 0.4s ease forwards; }
-        .swal2-popup { background: #111827 !important; color: #fff !important; border-radius: 24px !important; border: 1px solid rgba(255,255,255,0.1) !important; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .urgente { border: 2px solid #ef4444 !important; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+        .swal2-popup { background: #111827 !important; color: #fff !important; border-radius: 24px !important; }
     </style>
 </head>
 <body class="p-4 md:p-10">
@@ -32,12 +34,13 @@
         const ADMIN_PASSWORD = 'vods123@';
         let currentItem = {};
         let searchMode = 'movie';
+        let allPedidos = {}; 
     </script>
 
     <header class="container mx-auto flex flex-col md:flex-row justify-between items-center mb-12 gap-6">
         <div class="text-center md:text-left">
             <h1 class="text-4xl font-black tracking-tighter text-blue-500">PORTAL<span class="text-white">VOD</span></h1>
-            <p class="text-slate-500 font-medium">Gerenciamento de Conteúdo</p>
+            <p class="text-slate-500 font-medium italic">Painel de Solicitações Profissional</p>
         </div>
         <nav class="flex gap-2 glass p-1.5 rounded-2xl shadow-2xl">
             <button onclick="showPage('cliente')" class="px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition">Início</button>
@@ -47,7 +50,10 @@
     </header>
 
     <main id="page-cliente" class="container mx-auto max-w-6xl">
-        <div class="glass p-8 rounded-[32px] mb-12 shadow-2xl">
+        <div class="glass p-8 rounded-[32px] mb-8 shadow-2xl border-t-4 border-blue-500">
+            <div class="mb-6 bg-blue-500/10 p-4 rounded-2xl border border-blue-500/20 text-blue-400 text-sm font-bold">
+                <i class="fas fa-bullhorn mr-2"></i> AVISO: Pedidos de conserto são prioridade em nossa fila!
+            </div>
             <div class="flex gap-6 mb-8 border-b border-slate-800 pb-4">
                 <button onclick="setSearchMode('movie')" id="btn-movie" class="text-blue-500 font-bold border-b-2 border-blue-500 pb-2">Filmes & Séries</button>
                 <button onclick="setSearchMode('tv')" id="btn-tv" class="text-slate-500 font-bold pb-2">Canais ao Vivo</button>
@@ -63,30 +69,39 @@
         <div class="glass p-10 rounded-[32px]">
             <h2 class="text-3xl font-black mb-8">Status do Pedido</h2>
             <div class="flex gap-3 mb-8">
-                <input type="email" id="trackEmail" placeholder="Seu e-mail" class="flex-1 input-dark p-4 rounded-2xl">
+                <input type="email" id="trackEmail" placeholder="Seu e-mail cadastrado" class="flex-1 input-dark p-4 rounded-2xl">
                 <button onclick="trackRequests()" class="bg-blue-600 px-8 rounded-2xl font-bold">Buscar</button>
             </div>
             <div id="track-results" class="space-y-5"></div>
         </div>
     </main>
 
-    <main id="page-admin" class="container mx-auto max-w-6xl hidden">
+    <main id="page-admin" class="container mx-auto max-w-7xl hidden">
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div class="glass p-6 rounded-3xl border-l-4 border-blue-500">
-                <p class="text-slate-400 text-xs font-bold uppercase">Total</p>
-                <h3 id="stat-total" class="text-2xl font-black">0</h3>
+            <div class="glass p-6 rounded-3xl border-l-4 border-blue-500"><p class="text-slate-400 text-xs font-bold uppercase">Total</p><h3 id="stat-total" class="text-2xl font-black">0</h3></div>
+            <div class="glass p-6 rounded-3xl border-l-4 border-yellow-500"><p class="text-slate-400 text-xs font-bold uppercase">Análise</p><h3 id="stat-analise" class="text-2xl font-black text-yellow-500">0</h3></div>
+            <div class="glass p-6 rounded-3xl border-l-4 border-green-500"><p class="text-slate-400 text-xs font-bold uppercase">Concluídos</p><h3 id="stat-concluido" class="text-2xl font-black text-green-500">0</h3></div>
+            <div class="glass p-6 rounded-3xl border-l-4 border-red-500"><p class="text-slate-400 text-xs font-bold uppercase">Rejeitados</p><h3 id="stat-rejeitado" class="text-2xl font-black text-red-500">0</h3></div>
+        </div>
+
+        <div class="grid lg:grid-cols-3 gap-8 mb-8">
+            <div class="glass p-6 rounded-[32px] lg:col-span-1">
+                <h3 class="font-black mb-4 flex items-center gap-2"><i class="fas fa-trophy text-yellow-500"></i> TOP PEDIDOS</h3>
+                <div id="ranking-list" class="space-y-3 text-sm text-slate-300"></div>
             </div>
-            <div class="glass p-6 rounded-3xl border-l-4 border-yellow-500">
-                <p class="text-slate-400 text-xs font-bold uppercase">Em Análise</p>
-                <h3 id="stat-analise" class="text-2xl font-black text-yellow-500">0</h3>
-            </div>
-            <div class="glass p-6 rounded-3xl border-l-4 border-green-500">
-                <p class="text-slate-400 text-xs font-bold uppercase">Concluídos</p>
-                <h3 id="stat-concluido" class="text-2xl font-black text-green-500">0</h3>
-            </div>
-            <div class="glass p-6 rounded-3xl border-l-4 border-red-500">
-                <p class="text-slate-400 text-xs font-bold uppercase">Rejeitados</p>
-                <h3 id="stat-rejeitado" class="text-2xl font-black text-red-500">0</h3>
+            <div class="glass p-6 rounded-[32px] lg:col-span-2">
+                <div class="flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
+                    <div class="flex gap-2">
+                        <button onclick="filterAdmin('Tudo')" class="bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold">Tudo</button>
+                        <button onclick="filterAdmin('Conserto')" class="bg-red-500/20 text-red-500 px-4 py-2 rounded-xl text-xs font-bold">Consertos</button>
+                        <button onclick="filterAdmin('Pendente')" class="bg-yellow-500/20 text-yellow-500 px-4 py-2 rounded-xl text-xs font-bold">Pendentes</button>
+                    </div>
+                    <input type="text" id="adminSearch" onkeyup="loadAdmin()" placeholder="Buscar por nome ou email..." class="input-dark p-3 rounded-xl text-xs w-full md:w-64">
+                </div>
+                <div class="flex justify-between items-center">
+                    <button onclick="clearFinished()" class="text-red-500 text-[10px] font-black uppercase hover:underline"><i class="fas fa-trash mr-1"></i> Limpar Concluídos</button>
+                    <button onclick="exportToExcel()" class="text-green-500 text-[10px] font-black uppercase hover:underline"><i class="fas fa-file-excel mr-1"></i> Exportar Dados</button>
+                </div>
             </div>
         </div>
 
@@ -109,20 +124,18 @@
                 <input type="email" id="userEmail" placeholder="E-mail" class="w-full input-dark p-4 rounded-2xl">
                 <select id="requestType" class="w-full input-dark p-4 rounded-2xl">
                     <option value="Adição">🎬 Solicitar Adição</option>
-                    <option value="Conserto">🛠️ Relatar Problema</option>
+                    <option value="Conserto">🛠️ Relatar Problema (Conserto)</option>
                     <option value="Atualização">🔄 Solicitar Atualização</option>
                 </select>
-                <textarea id="userObs" placeholder="Ex: Temporada 2, Episódio 5 sem áudio..." class="w-full input-dark p-4 rounded-2xl h-24"></textarea>
-                <button id="btnEnviar" onclick="saveToFirebase()" class="w-full py-5 bg-blue-600 rounded-[24px] font-black">ENVIAR</button>
-                <button onclick="closeModal()" class="w-full text-slate-500 font-bold mt-4">VOLTAR</button>
+                <textarea id="userObs" placeholder="Ex: Sem áudio no ep 2..." class="w-full input-dark p-4 rounded-2xl h-24"></textarea>
+                <button id="btnEnviar" onclick="saveToFirebase()" class="w-full py-5 bg-blue-600 rounded-[24px] font-black shadow-lg hover:bg-blue-700 transition">ENVIAR PEDIDO</button>
+                <button onclick="closeModal()" class="w-full text-slate-500 font-bold mt-4">CANCELAR</button>
             </div>
         </div>
     </div>
 
     <script>
-        // ... TODAS AS OUTRAS FUNÇÕES (showPage, setSearchMode, etc) MANTÊM-SE IGUAIS ...
-        // APENAS AS FUNÇÕES LOADADMIN E DE SALVAMENTO SÃO GARANTIDAS AQUI
-
+        // --- NAVEGAÇÃO E BUSCA ---
         function showPage(page) {
             document.querySelectorAll('main').forEach(m => m.classList.add('hidden'));
             document.getElementById(`page-${page}`).classList.remove('hidden');
@@ -133,7 +146,6 @@
             searchMode = mode;
             document.getElementById('btn-movie').className = mode === 'movie' ? 'text-blue-500 font-bold border-b-2 border-blue-500 pb-2' : 'text-slate-500 font-bold pb-2';
             document.getElementById('btn-tv').className = mode === 'tv' ? 'text-blue-500 font-bold border-b-2 border-blue-500 pb-2' : 'text-slate-500 font-bold pb-2';
-            document.getElementById('grid-content').innerHTML = '';
         }
 
         async function searchTMDB() {
@@ -144,13 +156,7 @@
             renderGrid(data.results.filter(i => i.poster_path).map(i => ({ name: (i.title || i.name).replace(/'/g, ""), img: `https://image.tmdb.org/t/p/w500${i.poster_path}` })));
         }
 
-        function handleSearch() { if (searchMode === 'movie') searchTMDB(); else searchCanais(); }
-        
-        function searchCanais() {
-            const q = document.getElementById('searchInput').value.toLowerCase();
-            if(q.length < 2) return;
-            renderGrid([{ name: `Canal: ${q}`, img: 'https://cdn-icons-png.flaticon.com/512/716/716429.png' }]);
-        }
+        function handleSearch() { if (searchMode === 'movie') searchTMDB(); else renderGrid([{ name: `Canal: ${document.getElementById('searchInput').value}`, img: 'https://cdn-icons-png.flaticon.com/512/716/716429.png' }]); }
 
         function renderGrid(items) {
             const grid = document.getElementById('grid-content');
@@ -162,47 +168,48 @@
                 </div>`).join('');
         }
 
+        // --- MODAL ---
         function openModal(name, img) {
             currentItem = { name, img };
             document.getElementById('modalTitle').innerText = name;
             document.getElementById('modal-poster').innerHTML = `<img src="${img}" class="w-full h-full object-cover">`;
             document.getElementById('modal').classList.remove('hidden');
         }
-
         function closeModal() { document.getElementById('modal').classList.add('hidden'); }
 
+        // --- FIREBASE SAVE ---
         async function saveToFirebase() {
             const user = document.getElementById('userName').value.trim();
             const email = document.getElementById('userEmail').value.trim().toLowerCase();
             const obs = document.getElementById('userObs').value.trim();
-            if(!user || !email) return Swal.fire('Erro', 'Preencha nome e e-mail', 'warning');
+            const type = document.getElementById('requestType').value;
+            if(!user || !email) return Swal.fire('Erro', 'Nome e e-mail são obrigatórios!', 'warning');
 
             const btn = document.getElementById('btnEnviar');
-            btn.disabled = true;
-            btn.innerText = "VERIFICANDO...";
+            btn.disabled = true; btn.innerText = "ENVIANDO...";
 
             const resData = await fetch(DATABASE_URL);
             const data = await resData.json();
             const agora = new Date().getTime();
 
             if (data) {
-                const pedidos = Object.values(data).filter(p => p.email === email);
-                if (pedidos.length > 0) {
-                    const ultimo = pedidos.sort((a, b) => b.timestamp - a.timestamp)[0];
+                const pedidosEmail = Object.values(data).filter(p => p.email === email);
+                if (pedidosEmail.length > 0) {
+                    const ultimo = pedidosEmail.sort((a, b) => b.timestamp - a.timestamp)[0];
                     if (agora - ultimo.timestamp < 24 * 60 * 60 * 1000) {
-                        Swal.fire('Aviso', 'Apenas 1 pedido por dia por e-mail.', 'error');
-                        btn.disabled = false; btn.innerText = "ENVIAR";
-                        return;
+                        btn.disabled = false; btn.innerText = "ENVIAR PEDIDO";
+                        return Swal.fire('Limite', 'Você já fez um pedido hoje. Tente amanhã!', 'error');
                     }
                 }
             }
 
-            await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify({ ...currentItem, user, email, type: document.getElementById('requestType').value, obs: obs, status: 'Pendente', date: new Date().toLocaleString('pt-BR'), timestamp: agora }) });
-            Swal.fire('Sucesso', 'Pedido enviado!', 'success');
-            btn.disabled = false; btn.innerText = "ENVIAR";
+            await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify({ ...currentItem, user, email, type, obs, status: 'Pendente', date: new Date().toLocaleString('pt-BR'), timestamp: agora }) });
+            Swal.fire('Enviado!', 'Sua solicitação está na fila.', 'success');
+            btn.disabled = false; btn.innerText = "ENVIAR PEDIDO";
             closeModal();
         }
 
+        // --- CLIENTE: RASTREIO ---
         async function trackRequests() {
             const email = document.getElementById('trackEmail').value.trim().toLowerCase();
             const res = await fetch(DATABASE_URL);
@@ -212,20 +219,29 @@
             if(!data) return;
             Object.values(data).reverse().forEach(p => {
                 if(p.email === email) {
-                    let feedback = p.motivo ? `<button onclick="Swal.fire('Resposta', '${p.motivo.replace(/'/g, "\\'")}', 'info')" class="text-[10px] text-blue-400 font-bold underline mt-2 block uppercase">Ver Resposta</button>` : '';
-                    container.innerHTML += `<div class="glass p-5 rounded-3xl flex items-center gap-5 card-animate"><img src="${p.img}" class="w-14 h-20 rounded-xl object-cover"><div class="flex-1"><b class="text-white">${p.name}</b><br><span class="text-slate-500 text-xs">${p.date}</span></div><div class="text-right"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span>${feedback}</div></div>`;
+                    let feedback = p.motivo ? `<button onclick="Swal.fire('Equipe Diz:', '${p.motivo.replace(/'/g, "\\'")}', 'info')" class="text-[10px] text-blue-400 font-bold underline mt-2 block uppercase">Ver Resposta</button>` : '';
+                    container.innerHTML += `<div class="glass p-5 rounded-3xl flex items-center gap-5 card-animate"><img src="${p.img}" class="w-14 h-20 rounded-xl object-cover"><div class="flex-1"><b class="text-white">${p.name}</b><br><span class="text-slate-500 text-[10px] uppercase font-bold">${p.type}</span></div><div class="text-right"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span>${feedback}</div></div>`;
                 }
             });
         }
 
-        // CARREGAR ADMIN COM OBSERVAÇÃO EXIBIDA
+        // --- ADMIN: LÓGICA ---
+        let currentFilter = 'Tudo';
+        function filterAdmin(tipo) { currentFilter = tipo; loadAdmin(); }
+
         async function loadAdmin() {
             const res = await fetch(DATABASE_URL);
             const data = await res.json();
+            allPedidos = data || {};
             const table = document.getElementById('admin-table');
+            const search = document.getElementById('adminSearch').value.toLowerCase();
             table.innerHTML = "";
+            
             let stats = { total: 0, analise: 0, concluido: 0, rejeitado: 0 };
+            let countMap = {};
+
             if(!data) return updateStats(stats);
+
             Object.keys(data).reverse().forEach(id => {
                 const p = data[id];
                 stats.total++;
@@ -233,18 +249,25 @@
                 if(p.status === 'Concluído') stats.concluido++;
                 if(p.status === 'Rejeitado') stats.rejeitado++;
 
-                // Lógica para mostrar observação
-                const obsPreview = p.obs ? `<p class="text-[10px] text-yellow-500/80 italic mt-1 max-w-[200px] truncate"><b>Obs:</b> ${p.obs}</p>` : '';
-                const obsBtn = p.obs ? `<button onclick="Swal.fire('Observação do Usuário', '${p.obs.replace(/'/g, "\\'")}', 'info')" class="text-yellow-500 ml-2 hover:scale-110 transition"><i class="fas fa-eye"></i></button>` : '';
+                // Ranking logic
+                countMap[p.name] = (countMap[p.name] || 0) + 1;
+
+                // Filtros
+                if(currentFilter !== 'Tudo' && currentFilter === 'Conserto' && p.type !== 'Conserto') return;
+                if(currentFilter !== 'Tudo' && currentFilter === 'Pendente' && p.status !== 'Pendente') return;
+                if(search && !p.name.toLowerCase().includes(search) && !p.email.toLowerCase().includes(search)) return;
+
+                const isUrgente = p.type === 'Conserto' ? 'urgente' : '';
+                const obsBtn = p.obs ? `<button onclick="Swal.fire('Observação', '${p.obs.replace(/'/g, "\\'")}', 'info')" class="text-yellow-500 ml-2 hover:scale-110"><i class="fas fa-comment-dots"></i></button>` : '';
 
                 table.innerHTML += `
                     <tr class="hover:bg-white/5 transition">
                         <td class="p-6 flex gap-4 items-center">
-                            <img src="${p.img}" class="w-12 h-16 rounded-xl object-cover">
+                            <img src="${p.img}" class="w-12 h-16 rounded-xl object-cover ${isUrgente}">
                             <div>
                                 <p class="font-bold text-sm text-white">${p.name}</p>
-                                <span class="text-[9px] text-blue-500 font-black uppercase">${p.type}</span>
-                                ${obsPreview}
+                                <span class="text-[9px] ${p.type === 'Conserto' ? 'text-red-500' : 'text-blue-500'} font-black uppercase">${p.type}</span>
+                                ${p.obs ? `<p class="text-[9px] text-slate-500 truncate w-32 italic">${p.obs}</p>` : ''}
                             </div>
                         </td>
                         <td class="p-6 text-xs text-slate-400"><b>${p.user}</b><br>${p.email}</td>
@@ -262,6 +285,7 @@
                     </tr>`;
             });
             updateStats(stats);
+            renderRanking(countMap);
         }
 
         function updateStats(s) {
@@ -271,25 +295,45 @@
             document.getElementById('stat-rejeitado').innerText = s.rejeitado;
         }
 
+        function renderRanking(map) {
+            const sorted = Object.entries(map).sort((a,b) => b[1] - a[1]).slice(0, 5);
+            document.getElementById('ranking-list').innerHTML = sorted.map(([name, count], i) => `
+                <div class="flex justify-between items-center bg-white/5 p-2 rounded-lg border border-white/5">
+                    <span>${i+1}. ${name}</span>
+                    <span class="bg-blue-600 px-2 rounded text-[10px] font-black">${count}x</span>
+                </div>`).join('') || 'Sem dados ainda...';
+        }
+
         async function handleStatusChange(id, newStatus) {
-            let motivo = "";
-            if(newStatus === 'Rejeitado') {
-                const { value: text } = await Swal.fire({ title: 'Motivo', input: 'select', inputOptions: { '1': 'Já existe', '2': 'Pouca relevância', '3': 'Sem mídia' } });
-                if(text === '1') motivo = "Já existe no servidor.";
-                else if(text === '2') motivo = "Pouca relevância.";
-                else if(text === '3') motivo = "Sem mídia no momento.";
-            } else if(newStatus === 'Concluído') motivo = "Pedido atendido!";
+            const { value: resp } = await Swal.fire({ title: 'Resposta ao Cliente', input: 'textarea', inputPlaceholder: 'Escreva sua mensagem personalizada...', showCancelButton: true });
+            if (resp === undefined) { loadAdmin(); return; }
+            const motivo = resp || (newStatus === 'Concluído' ? "Pedido atendido!" : "Pedido rejeitado.");
             await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'PATCH', body: JSON.stringify({ status: newStatus, motivo: motivo }) });
             loadAdmin();
         }
 
         async function deletePedido(id) {
-            const r = await Swal.fire({ title: 'Excluir?', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: 'Sim!', cancelButtonText: 'Não' });
+            const r = await Swal.fire({ title: 'Excluir?', icon: 'warning', showCancelButton: true });
             if (r.isConfirmed) { await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' }); loadAdmin(); }
         }
 
+        async function clearFinished() {
+            const r = await Swal.fire({ title: 'Limpar Concluídos?', text: 'Isso apagará todos do Firebase!', icon: 'warning', showCancelButton: true });
+            if (r.isConfirmed) {
+                for(let id in allPedidos) if(allPedidos[id].status === 'Concluído') await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' });
+                loadAdmin();
+            }
+        }
+
+        function exportToExcel() {
+            let csv = "Nome;Email;Conteudo;Tipo;Status;Data\n";
+            Object.values(allPedidos).forEach(p => { csv += `${p.user};${p.email};${p.name};${p.type};${p.status};${p.date}\n`; });
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'pedidos_vod.csv'; a.click();
+        }
+
         function checkAdminPassword() {
-            Swal.fire({ title: 'Admin', input: 'password', showCancelButton: true }).then((r) => { if(r.value === ADMIN_PASSWORD) showPage('admin'); });
+            Swal.fire({ title: 'Acesso Restrito', input: 'password', showCancelButton: true }).then((r) => { if(r.value === ADMIN_PASSWORD) showPage('admin'); });
         }
     </script>
 </body>
