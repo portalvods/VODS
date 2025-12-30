@@ -54,30 +54,20 @@
             <h2 class="text-2xl font-bold mb-4 text-center">Acompanhar Meus Pedidos</h2>
             <div class="mb-8">
                 <div class="flex gap-2">
-                    <input type="email" id="trackEmail" placeholder="Digite seu e-mail cadastrado" 
-                        class="flex-1 p-3 rounded-xl border shadow-md outline-none transition-all"
-                        oninput="this.classList.remove('error-border'); document.getElementById('trackError').classList.add('hidden')">
+                    <input type="email" id="trackEmail" placeholder="E-mail cadastrado" class="flex-1 p-3 rounded-xl border shadow-md outline-none transition-all">
                     <button onclick="trackRequests()" class="bg-blue-600 text-white px-6 rounded-xl font-bold hover:bg-blue-700">Buscar</button>
                 </div>
-                <p id="trackError" class="text-red-500 text-xs mt-2 ml-1 font-bold hidden">⚠️ Insira um e-mail válido para buscar.</p>
             </div>
             <div id="track-results" class="space-y-4"></div>
         </div>
     </main>
 
     <main id="page-admin" class="container mx-auto px-4 py-8 hidden">
-        <div class="flex justify-between items-center mb-8">
-            <h2 class="text-2xl font-bold text-blue-600">Painel Administrativo</h2>
-        </div>
+        <h2 class="text-2xl font-bold text-blue-600 mb-8">Painel Administrativo</h2>
         <div class="bg-white rounded-2xl shadow-sm overflow-x-auto">
             <table class="w-full text-left border-collapse text-sm">
                 <thead class="bg-gray-50 text-[10px] uppercase font-bold text-gray-400">
-                    <tr>
-                        <th class="p-4">Conteúdo / Tipo</th>
-                        <th class="p-4">Usuário</th>
-                        <th class="p-4">Status</th>
-                        <th class="p-4 text-center">Ações</th>
-                    </tr>
+                    <tr><th class="p-4">Conteúdo</th><th class="p-4">Usuário</th><th class="p-4">Status</th><th class="p-4 text-center">Ações</th></tr>
                 </thead>
                 <tbody id="admin-table" class="divide-y divide-gray-100"></tbody>
             </table>
@@ -90,22 +80,14 @@
             <h3 class="text-2xl font-bold text-center mb-6" id="modalTitle"></h3>
             <div class="space-y-4">
                 <input type="text" id="userName" placeholder="Seu Nome" class="w-full p-3 bg-gray-50 border rounded-xl outline-none">
-                
-                <div class="w-full">
-                    <input type="email" id="userEmail" placeholder="Seu E-mail (Obrigatório)" 
-                        class="w-full p-3 bg-gray-50 border rounded-xl outline-none transition-all"
-                        oninput="this.classList.remove('error-border'); document.getElementById('emailError').classList.add('hidden')">
-                    <p id="emailError" class="text-red-500 text-[10px] mt-1 ml-1 font-bold hidden">⚠️ Por favor, insira um e-mail válido!</p>
-                </div>
-
+                <input type="email" id="userEmail" placeholder="Seu E-mail" class="w-full p-3 bg-gray-50 border rounded-xl outline-none">
                 <select id="requestType" class="w-full p-3 bg-gray-50 border rounded-xl outline-none">
                     <option value="Adição">🎬 Solicitar Adição</option>
                     <option value="Conserto">🛠️ Reportar Erro / Conserto</option>
                     <option value="Atualização">🔄 Solicitar Atualização</option>
                 </select>
-
                 <textarea id="userObs" placeholder="Observações (opcional)" class="w-full p-3 bg-gray-50 border rounded-xl outline-none"></textarea>
-                <button id="btnEnviar" onclick="saveToFirebase()" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg hover:bg-blue-700 transition">Enviar Solicitação</button>
+                <button id="btnEnviar" onclick="saveToFirebase()" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg">Enviar Solicitação</button>
                 <button onclick="closeModal()" class="w-full text-gray-400 text-sm mt-2">Cancelar</button>
             </div>
         </div>
@@ -123,7 +105,6 @@
             document.getElementById('btn-movie').className = `tab-btn pb-2 font-bold uppercase text-xs ${mode === 'movie' ? 'active text-blue-600' : 'text-gray-400'}`;
             document.getElementById('btn-tv').className = `tab-btn pb-2 font-bold uppercase text-xs ${mode === 'tv' ? 'active text-blue-600' : 'text-gray-400'}`;
             document.getElementById('grid-content').innerHTML = '';
-            document.getElementById('searchInput').value = '';
         }
 
         function handleSearch() {
@@ -145,7 +126,7 @@
         function searchCanais() {
             const q = document.getElementById('searchInput').value.toLowerCase();
             if(q.length < 2) return;
-            renderGrid([{ name: `Pedir Canal: ${q}`, img: 'https://cdn-icons-png.flaticon.com/512/716/716429.png' }]);
+            renderGrid([{ name: `Canal: ${q}`, img: 'https://cdn-icons-png.flaticon.com/512/716/716429.png' }]);
         }
 
         function renderGrid(items) {
@@ -167,103 +148,71 @@
 
         function closeModal() { document.getElementById('modal').classList.add('hidden'); }
 
-        // --- LÓGICA DE 1 PEDIDO POR DIA ---
         async function saveToFirebase() {
             const user = document.getElementById('userName').value.trim();
-            const emailField = document.getElementById('userEmail');
-            const email = emailField.value.trim().toLowerCase();
-            const emailError = document.getElementById('emailError');
+            const email = document.getElementById('userEmail').value.trim().toLowerCase();
             const type = document.getElementById('requestType').value;
             const obs = document.getElementById('userObs').value;
             
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!email || !emailRegex.test(email)) {
-                emailField.classList.add('error-border');
-                emailError.classList.remove('hidden');
-                emailField.focus();
-                return;
-            }
-
-            if(!user) return alert("Digite seu nome!");
+            if(!user || !email) return alert("Preencha Nome e E-mail!");
 
             const btn = document.getElementById('btnEnviar');
             btn.disabled = true;
             btn.innerText = "Verificando...";
 
-            // Buscar pedidos existentes para verificar limite de tempo
             const resData = await fetch(DATABASE_URL);
             const data = await resData.json();
             const agora = new Date().getTime();
-            const UM_DIA_EM_MS = 24 * 60 * 60 * 1000;
 
             if (data) {
                 const pedidosDoUsuario = Object.values(data).filter(p => p.email === email);
                 if (pedidosDoUsuario.length > 0) {
-                    // Pega o pedido mais recente do usuário
                     const ultimoPedido = pedidosDoUsuario.sort((a, b) => b.timestamp - a.timestamp)[0];
-                    const tempoPassado = agora - ultimoPedido.timestamp;
-
-                    if (tempoPassado < UM_DIA_EM_MS) {
-                        const horasRestantes = Math.ceil((UM_DIA_EM_MS - tempoPassado) / (1000 * 60 * 60));
-                        alert(`Limite excedido! Você só pode fazer um pedido por dia. Tente novamente em aproximadamente ${horasRestantes} horas.`);
-                        btn.disabled = false;
-                        btn.innerText = "Enviar Solicitação";
+                    if (agora - ultimoPedido.timestamp < 24 * 60 * 60 * 1000) {
+                        alert("Você só pode fazer um pedido a cada 24 horas.");
+                        btn.disabled = false; btn.innerText = "Enviar Solicitação";
                         return;
                     }
                 }
             }
 
-            // Se passou na verificação, salva o pedido
-            const novoPedido = {
-                ...currentItem, user, email, type, obs,
-                status: 'Pendente',
-                date: new Date().toLocaleString('pt-BR'),
-                timestamp: agora
-            };
-
+            const novoPedido = { ...currentItem, user, email, type, obs, status: 'Pendente', date: new Date().toLocaleString('pt-BR'), timestamp: agora };
             await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify(novoPedido) });
-            alert("Pedido enviado com sucesso!");
-            btn.disabled = false;
-            btn.innerText = "Enviar Solicitação";
+            alert("Pedido enviado!");
+            btn.disabled = false; btn.innerText = "Enviar Solicitação";
             closeModal();
         }
 
         async function trackRequests() {
-            const emailField = document.getElementById('trackEmail');
-            const email = emailField.value.trim().toLowerCase();
-            const trackError = document.getElementById('trackError');
-            
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!email || !emailRegex.test(email)) {
-                emailField.classList.add('error-border');
-                trackError.classList.remove('hidden');
-                emailField.focus();
-                return;
-            }
-
+            const email = document.getElementById('trackEmail').value.trim().toLowerCase();
+            if(!email) return alert("Digite seu e-mail");
             const res = await fetch(DATABASE_URL);
             const data = await res.json();
             const container = document.getElementById('track-results');
             container.innerHTML = "";
             
-            if(!data) return container.innerHTML = "<p class='text-center text-gray-400'>Nenhum pedido encontrado.</p>";
+            if(!data) return container.innerHTML = "<p class='text-center text-gray-400'>Nenhum pedido.</p>";
 
-            let found = false;
             Object.values(data).reverse().forEach(p => {
                 if(p.email === email) {
-                    found = true;
+                    let feedbackBtn = '';
+                    if (p.status === 'Rejeitado' && p.motivo) {
+                        feedbackBtn = `<br><button onclick="alert('Motivo da Rejeição: ${p.motivo}')" class="text-[9px] text-red-600 font-bold underline mt-1 italic leading-tight uppercase">Ver Motivo</button>`;
+                    } else if (p.status === 'Concluído' && p.motivo) {
+                        feedbackBtn = `<br><button onclick="alert('Mensagem: ${p.motivo}')" class="text-[9px] text-green-600 font-bold underline mt-1 italic leading-tight uppercase">Ver Mensagem</button>`;
+                    }
+
                     container.innerHTML += `
                         <div class="bg-white p-4 rounded-2xl shadow-sm flex items-center gap-4 border-l-4 border-blue-500">
                             <img src="${p.img}" class="w-12 h-16 rounded object-cover">
-                            <div class="flex-1 text-sm">
-                                <b>${p.name}</b> <span class="text-[9px] text-blue-500 font-bold">(${p.type})</span><br>
-                                <span class="text-[10px] text-gray-400">${p.date}</span>
+                            <div class="flex-1 text-sm"><b>${p.name}</b> <span class="text-[9px] text-blue-500 font-bold">(${p.type})</span><br><span class="text-[10px] text-gray-400">${p.date}</span></div>
+                            <div class="text-right">
+                                <span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span>
+                                ${feedbackBtn}
                             </div>
-                            <span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span>
                         </div>`;
                 }
             });
-            if(!found) container.innerHTML = "<p class='text-center text-red-500 font-bold'>E-mail não encontrado no sistema.</p>";
         }
 
         async function loadAdmin() {
@@ -284,7 +233,7 @@
                         <td class="p-4 text-xs"><b>${p.user}</b><br>${p.email}</td>
                         <td class="p-4"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span></td>
                         <td class="p-4 text-center">
-                            <select onchange="updateFirebaseStatus('${id}', this.value)" class="text-[10px] p-1 border rounded outline-none">
+                            <select onchange="handleStatusChange('${id}', this.value)" class="text-[10px] p-1 border rounded outline-none">
                                 <option value="Pendente" ${p.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
                                 <option value="Em Análise" ${p.status === 'Em Análise' ? 'selected' : ''}>Análise</option>
                                 <option value="Concluído" ${p.status === 'Concluído' ? 'selected' : ''}>Concluído</option>
@@ -296,10 +245,28 @@
             });
         }
 
-        async function updateFirebaseStatus(id, newStatus) {
+        async function handleStatusChange(id, newStatus) {
+            let motivo = "";
+            
+            if(newStatus === 'Rejeitado') {
+                const choice = prompt("ESCOLHA O MOTIVO DA REJEIÇÃO:\n1. Já existe/Sem erro\n2. Pouca Relevância\n3. Sem mídia disponível\n\nOu digite um motivo personalizado:");
+                if(choice === "1") motivo = "Conteúdo Já Existente ou sem Problema Técnico na Mídia: O conteúdo solicitado já está disponível ou não apresenta falhas técnicas, não havendo necessidade de reposição ou atualização no servidor.";
+                else if(choice === "2") motivo = "Conteúdo de Pouca Relevância ao Público: O material não atende de forma significativa às necessidades ou interesses do público-alvo, resultando em baixa demanda.";
+                else if(choice === "3") motivo = "Conteúdo sem Mídia disponível no momento.";
+                else if(choice) motivo = choice;
+                else return loadAdmin();
+            } 
+            
+            else if(newStatus === 'Concluído') {
+                const msgDefault = "Olá! O conteúdo que você solicitou já foi processado e está disponível no servidor. Aproveite!";
+                const choice = prompt("MENSAGEM DE SUCESSO:\nDeixe em branco para usar a mensagem padrão ou digite uma personalizada:", msgDefault);
+                if (choice === null) return loadAdmin();
+                motivo = choice || msgDefault;
+            }
+            
             await fetch(DATABASE_URL.replace('.json', `/${id}.json`), {
                 method: 'PATCH',
-                body: JSON.stringify({ status: newStatus })
+                body: JSON.stringify({ status: newStatus, motivo: motivo })
             });
             loadAdmin();
         }
