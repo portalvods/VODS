@@ -93,7 +93,7 @@
         <div class="glass rounded-[32px] overflow-hidden">
             <table class="w-full text-left">
                 <thead class="bg-slate-900/60 text-slate-500 uppercase text-[10px] font-black">
-                    <tr><th class="p-6">Conteúdo</th><th class="p-6">Solicitante</th><th class="p-6">Status</th><th class="p-6 text-center">Ações</th></tr>
+                    <tr><th class="p-6">Conteúdo / Obs</th><th class="p-6">Solicitante</th><th class="p-6">Status</th><th class="p-6 text-center">Ações</th></tr>
                 </thead>
                 <tbody id="admin-table" class="divide-y divide-slate-800"></tbody>
             </table>
@@ -112,7 +112,7 @@
                     <option value="Conserto">🛠️ Relatar Problema</option>
                     <option value="Atualização">🔄 Solicitar Atualização</option>
                 </select>
-                <textarea id="userObs" placeholder="Obs..." class="w-full input-dark p-4 rounded-2xl h-24"></textarea>
+                <textarea id="userObs" placeholder="Ex: Temporada 2, Episódio 5 sem áudio..." class="w-full input-dark p-4 rounded-2xl h-24"></textarea>
                 <button id="btnEnviar" onclick="saveToFirebase()" class="w-full py-5 bg-blue-600 rounded-[24px] font-black">ENVIAR</button>
                 <button onclick="closeModal()" class="w-full text-slate-500 font-bold mt-4">VOLTAR</button>
             </div>
@@ -120,6 +120,9 @@
     </div>
 
     <script>
+        // ... TODAS AS OUTRAS FUNÇÕES (showPage, setSearchMode, etc) MANTÊM-SE IGUAIS ...
+        // APENAS AS FUNÇÕES LOADADMIN E DE SALVAMENTO SÃO GARANTIDAS AQUI
+
         function showPage(page) {
             document.querySelectorAll('main').forEach(m => m.classList.add('hidden'));
             document.getElementById(`page-${page}`).classList.remove('hidden');
@@ -171,6 +174,7 @@
         async function saveToFirebase() {
             const user = document.getElementById('userName').value.trim();
             const email = document.getElementById('userEmail').value.trim().toLowerCase();
+            const obs = document.getElementById('userObs').value.trim();
             if(!user || !email) return Swal.fire('Erro', 'Preencha nome e e-mail', 'warning');
 
             const btn = document.getElementById('btnEnviar');
@@ -193,7 +197,7 @@
                 }
             }
 
-            await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify({ ...currentItem, user, email, type: document.getElementById('requestType').value, obs: document.getElementById('userObs').value, status: 'Pendente', date: new Date().toLocaleString('pt-BR'), timestamp: agora }) });
+            await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify({ ...currentItem, user, email, type: document.getElementById('requestType').value, obs: obs, status: 'Pendente', date: new Date().toLocaleString('pt-BR'), timestamp: agora }) });
             Swal.fire('Sucesso', 'Pedido enviado!', 'success');
             btn.disabled = false; btn.innerText = "ENVIAR";
             closeModal();
@@ -214,6 +218,7 @@
             });
         }
 
+        // CARREGAR ADMIN COM OBSERVAÇÃO EXIBIDA
         async function loadAdmin() {
             const res = await fetch(DATABASE_URL);
             const data = await res.json();
@@ -227,19 +232,32 @@
                 if(p.status === 'Em Análise') stats.analise++;
                 if(p.status === 'Concluído') stats.concluido++;
                 if(p.status === 'Rejeitado') stats.rejeitado++;
+
+                // Lógica para mostrar observação
+                const obsPreview = p.obs ? `<p class="text-[10px] text-yellow-500/80 italic mt-1 max-w-[200px] truncate"><b>Obs:</b> ${p.obs}</p>` : '';
+                const obsBtn = p.obs ? `<button onclick="Swal.fire('Observação do Usuário', '${p.obs.replace(/'/g, "\\'")}', 'info')" class="text-yellow-500 ml-2 hover:scale-110 transition"><i class="fas fa-eye"></i></button>` : '';
+
                 table.innerHTML += `
-                    <tr class="hover:bg-white/5">
-                        <td class="p-6 flex gap-4 items-center"><img src="${p.img}" class="w-12 h-16 rounded-xl object-cover"><div><p class="font-bold text-sm text-white">${p.name}</p><span class="text-[9px] text-blue-500 font-black">${p.type}</span></div></td>
+                    <tr class="hover:bg-white/5 transition">
+                        <td class="p-6 flex gap-4 items-center">
+                            <img src="${p.img}" class="w-12 h-16 rounded-xl object-cover">
+                            <div>
+                                <p class="font-bold text-sm text-white">${p.name}</p>
+                                <span class="text-[9px] text-blue-500 font-black uppercase">${p.type}</span>
+                                ${obsPreview}
+                            </div>
+                        </td>
                         <td class="p-6 text-xs text-slate-400"><b>${p.user}</b><br>${p.email}</td>
                         <td class="p-6"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span></td>
-                        <td class="p-6 text-center">
+                        <td class="p-6 text-center flex items-center justify-center">
                             <select onchange="handleStatusChange('${id}', this.value)" class="text-[10px] p-2 bg-slate-800 rounded-xl outline-none mr-2">
                                 <option value="Pendente" ${p.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
                                 <option value="Em Análise" ${p.status === 'Em Análise' ? 'selected' : ''}>Análise</option>
                                 <option value="Concluído" ${p.status === 'Concluído' ? 'selected' : ''}>Concluído</option>
                                 <option value="Rejeitado" ${p.status === 'Rejeitado' ? 'selected' : ''}>Rejeitado</option>
                             </select>
-                            <button onclick="deletePedido('${id}')" class="text-slate-500 hover:text-red-500 transition"><i class="fas fa-trash-alt"></i></button>
+                            ${obsBtn}
+                            <button onclick="deletePedido('${id}')" class="text-slate-500 hover:text-red-500 transition ml-2"><i class="fas fa-trash-alt"></i></button>
                         </td>
                     </tr>`;
             });
