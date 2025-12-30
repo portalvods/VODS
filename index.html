@@ -52,18 +52,16 @@
     <main id="page-status" class="container mx-auto px-4 py-8 hidden">
         <div class="max-w-xl mx-auto">
             <h2 class="text-2xl font-bold mb-4 text-center">Acompanhar Meus Pedidos</h2>
-            <div class="mb-8">
-                <div class="flex gap-2">
-                    <input type="email" id="trackEmail" placeholder="E-mail cadastrado" class="flex-1 p-3 rounded-xl border shadow-md outline-none transition-all">
-                    <button onclick="trackRequests()" class="bg-blue-600 text-white px-6 rounded-xl font-bold hover:bg-blue-700">Buscar</button>
-                </div>
+            <div class="mb-8 flex gap-2">
+                <input type="email" id="trackEmail" placeholder="E-mail cadastrado" class="flex-1 p-3 rounded-xl border shadow-md outline-none transition-all">
+                <button onclick="trackRequests()" class="bg-blue-600 text-white px-6 rounded-xl font-bold">Buscar</button>
             </div>
             <div id="track-results" class="space-y-4"></div>
         </div>
     </main>
 
     <main id="page-admin" class="container mx-auto px-4 py-8 hidden">
-        <h2 class="text-2xl font-bold text-blue-600 mb-8">Painel Administrativo</h2>
+        <h2 class="text-2xl font-bold text-blue-600 mb-8">Painel Admin</h2>
         <div class="bg-white rounded-2xl shadow-sm overflow-x-auto">
             <table class="w-full text-left border-collapse text-sm">
                 <thead class="bg-gray-50 text-[10px] uppercase font-bold text-gray-400">
@@ -87,7 +85,7 @@
                     <option value="Atualização">🔄 Solicitar Atualização</option>
                 </select>
                 <textarea id="userObs" placeholder="Observações (opcional)" class="w-full p-3 bg-gray-50 border rounded-xl outline-none"></textarea>
-                <button id="btnEnviar" onclick="saveToFirebase()" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg">Enviar Solicitação</button>
+                <button id="btnEnviar" onclick="saveToFirebase()" class="w-full py-4 bg-blue-600 text-white rounded-2xl font-bold">Enviar Pedido</button>
                 <button onclick="closeModal()" class="w-full text-gray-400 text-sm mt-2">Cancelar</button>
             </div>
         </div>
@@ -107,11 +105,6 @@
             document.getElementById('grid-content').innerHTML = '';
         }
 
-        function handleSearch() {
-            if (searchMode === 'movie') searchTMDB();
-            else searchCanais();
-        }
-
         async function searchTMDB() {
             const q = document.getElementById('searchInput').value;
             if(q.length < 3) return;
@@ -123,6 +116,7 @@
             })));
         }
 
+        function handleSearch() { if (searchMode === 'movie') searchTMDB(); else searchCanais(); }
         function searchCanais() {
             const q = document.getElementById('searchInput').value.toLowerCase();
             if(q.length < 2) return;
@@ -153,12 +147,7 @@
             const email = document.getElementById('userEmail').value.trim().toLowerCase();
             const type = document.getElementById('requestType').value;
             const obs = document.getElementById('userObs').value;
-            
             if(!user || !email) return alert("Preencha Nome e E-mail!");
-
-            const btn = document.getElementById('btnEnviar');
-            btn.disabled = true;
-            btn.innerText = "Verificando...";
 
             const resData = await fetch(DATABASE_URL);
             const data = await resData.json();
@@ -167,49 +156,38 @@
             if (data) {
                 const pedidosDoUsuario = Object.values(data).filter(p => p.email === email);
                 if (pedidosDoUsuario.length > 0) {
-                    const ultimoPedido = pedidosDoUsuario.sort((a, b) => b.timestamp - a.timestamp)[0];
-                    if (agora - ultimoPedido.timestamp < 24 * 60 * 60 * 1000) {
-                        alert("Você só pode fazer um pedido a cada 24 horas.");
-                        btn.disabled = false; btn.innerText = "Enviar Solicitação";
-                        return;
-                    }
+                    const ultimo = pedidosDoUsuario.sort((a, b) => b.timestamp - a.timestamp)[0];
+                    if (agora - ultimo.timestamp < 24 * 60 * 60 * 1000) return alert("Apenas um pedido por dia.");
                 }
             }
 
-            const novoPedido = { ...currentItem, user, email, type, obs, status: 'Pendente', date: new Date().toLocaleString('pt-BR'), timestamp: agora };
-            await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify(novoPedido) });
-            alert("Pedido enviado!");
-            btn.disabled = false; btn.innerText = "Enviar Solicitação";
-            closeModal();
+            await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify({ ...currentItem, user, email, type, obs, status: 'Pendente', date: new Date().toLocaleString('pt-BR'), timestamp: agora }) });
+            alert("Enviado!"); closeModal();
         }
 
         async function trackRequests() {
             const email = document.getElementById('trackEmail').value.trim().toLowerCase();
-            if(!email) return alert("Digite seu e-mail");
             const res = await fetch(DATABASE_URL);
             const data = await res.json();
             const container = document.getElementById('track-results');
             container.innerHTML = "";
-            
-            if(!data) return container.innerHTML = "<p class='text-center text-gray-400'>Nenhum pedido.</p>";
+            if(!data) return;
 
             Object.values(data).reverse().forEach(p => {
                 if(p.email === email) {
                     let feedbackBtn = '';
-                    if (p.status === 'Rejeitado' && p.motivo) {
-                        feedbackBtn = `<br><button onclick="alert('Motivo da Rejeição: ${p.motivo}')" class="text-[9px] text-red-600 font-bold underline mt-1 italic leading-tight uppercase">Ver Motivo</button>`;
-                    } else if (p.status === 'Concluído' && p.motivo) {
-                        feedbackBtn = `<br><button onclick="alert('Mensagem: ${p.motivo}')" class="text-[9px] text-green-600 font-bold underline mt-1 italic leading-tight uppercase">Ver Mensagem</button>`;
+                    // LOGICA CORRIGIDA: Se tiver motivo salvo, mostra o botão
+                    if (p.motivo && p.motivo.trim() !== "") {
+                        const corBotao = p.status === 'Rejeitado' ? 'text-red-600' : 'text-green-600';
+                        const labelBotao = p.status === 'Rejeitado' ? 'VER MOTIVO' : 'VER MENSAGEM';
+                        feedbackBtn = `<br><button onclick="alert('${p.motivo.replace(/'/g, "\\'")}')" class="text-[9px] ${corBotao} font-bold underline mt-1 italic leading-tight uppercase">${labelBotao}</button>`;
                     }
 
                     container.innerHTML += `
                         <div class="bg-white p-4 rounded-2xl shadow-sm flex items-center gap-4 border-l-4 border-blue-500">
                             <img src="${p.img}" class="w-12 h-16 rounded object-cover">
                             <div class="flex-1 text-sm"><b>${p.name}</b> <span class="text-[9px] text-blue-500 font-bold">(${p.type})</span><br><span class="text-[10px] text-gray-400">${p.date}</span></div>
-                            <div class="text-right">
-                                <span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span>
-                                ${feedbackBtn}
-                            </div>
+                            <div class="text-right"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span>${feedbackBtn}</div>
                         </div>`;
                 }
             });
@@ -221,66 +199,33 @@
             const table = document.getElementById('admin-table');
             table.innerHTML = "";
             if(!data) return;
-
             Object.keys(data).reverse().forEach(id => {
                 const p = data[id];
-                table.innerHTML += `
-                    <tr>
-                        <td class="p-4 flex items-center gap-3">
-                            <img src="${p.img}" class="w-8 h-10 rounded object-cover">
-                            <div><p class="font-bold text-xs">${p.name}</p><span class="text-[9px] px-1 bg-blue-50 text-blue-600 font-bold rounded">${p.type}</span></div>
-                        </td>
-                        <td class="p-4 text-xs"><b>${p.user}</b><br>${p.email}</td>
-                        <td class="p-4"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span></td>
-                        <td class="p-4 text-center">
-                            <select onchange="handleStatusChange('${id}', this.value)" class="text-[10px] p-1 border rounded outline-none">
-                                <option value="Pendente" ${p.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
-                                <option value="Em Análise" ${p.status === 'Em Análise' ? 'selected' : ''}>Análise</option>
-                                <option value="Concluído" ${p.status === 'Concluído' ? 'selected' : ''}>Concluído</option>
-                                <option value="Rejeitado" ${p.status === 'Rejeitado' ? 'selected' : ''}>Rejeitado</option>
-                            </select>
-                            <button onclick="deletePedido('${id}')" class="ml-2 text-red-300"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>`;
+                table.innerHTML += `<tr><td class="p-4 flex gap-3"><img src="${p.img}" class="w-8 h-10 rounded object-cover"><div><p class="font-bold text-xs">${p.name}</p><span class="text-[9px] px-1 bg-blue-50 text-blue-600 font-bold rounded">${p.type}</span></div></td><td class="p-4 text-xs"><b>${p.user}</b><br>${p.email}</td><td class="p-4"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span></td><td class="p-4 text-center"><select onchange="handleStatusChange('${id}', this.value)" class="text-[10px] p-1 border rounded"><option value="Pendente" ${p.status === 'Pendente' ? 'selected' : ''}>Pendente</option><option value="Em Análise" ${p.status === 'Em Análise' ? 'selected' : ''}>Análise</option><option value="Concluído" ${p.status === 'Concluído' ? 'selected' : ''}>Concluído</option><option value="Rejeitado" ${p.status === 'Rejeitado' ? 'selected' : ''}>Rejeitado</option></select><button onclick="deletePedido('${id}')" class="ml-2 text-red-300"><i class="fas fa-trash"></i></button></td></tr>`;
             });
         }
 
         async function handleStatusChange(id, newStatus) {
             let motivo = "";
-            
             if(newStatus === 'Rejeitado') {
-                const choice = prompt("ESCOLHA O MOTIVO DA REJEIÇÃO:\n1. Já existe/Sem erro\n2. Pouca Relevância\n3. Sem mídia disponível\n\nOu digite um motivo personalizado:");
-                if(choice === "1") motivo = "Conteúdo Já Existente ou sem Problema Técnico na Mídia: O conteúdo solicitado já está disponível ou não apresenta falhas técnicas, não havendo necessidade de reposição ou atualização no servidor.";
-                else if(choice === "2") motivo = "Conteúdo de Pouca Relevância ao Público: O material não atende de forma significativa às necessidades ou interesses do público-alvo, resultando em baixa demanda.";
+                const choice = prompt("1. Já existe/Sem erro\n2. Pouca Relevância\n3. Sem mídia\nOu digite:");
+                if(choice === "1") motivo = "Conteúdo Já Existente ou sem Problema Técnico na Mídia.";
+                else if(choice === "2") motivo = "Conteúdo de Pouca Relevância ao Público.";
                 else if(choice === "3") motivo = "Conteúdo sem Mídia disponível no momento.";
                 else if(choice) motivo = choice;
                 else return loadAdmin();
-            } 
-            
-            else if(newStatus === 'Concluído') {
-                const msgDefault = "Olá! O conteúdo que você solicitou já foi processado e está disponível no servidor. Aproveite!";
-                const choice = prompt("MENSAGEM DE SUCESSO:\nDeixe em branco para usar a mensagem padrão ou digite uma personalizada:", msgDefault);
+            } else if(newStatus === 'Concluído') {
+                const msg = "Olá! O conteúdo solicitado já está disponível. Aproveite!";
+                const choice = prompt("Mensagem de sucesso:", msg);
                 if (choice === null) return loadAdmin();
-                motivo = choice || msgDefault;
+                motivo = choice || msg;
             }
-            
-            await fetch(DATABASE_URL.replace('.json', `/${id}.json`), {
-                method: 'PATCH',
-                body: JSON.stringify({ status: newStatus, motivo: motivo })
-            });
+            await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'PATCH', body: JSON.stringify({ status: newStatus, motivo: motivo }) });
             loadAdmin();
         }
 
-        async function deletePedido(id) {
-            if(confirm("Apagar permanentemente?")) {
-                await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' });
-                loadAdmin();
-            }
-        }
-
-        function checkAdminPassword() {
-            if(prompt("Senha:") === ADMIN_PASSWORD) showPage('admin');
-        }
+        async function deletePedido(id) { if(confirm("Apagar?")) { await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' }); loadAdmin(); } }
+        function checkAdminPassword() { if(prompt("Senha:") === ADMIN_PASSWORD) showPage('admin'); }
     </script>
 </body>
 </html>
