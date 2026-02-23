@@ -155,7 +155,6 @@
             if(q.length < 3) return;
             const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${API_KEY_TMDB}&language=pt-BR&query=${q}`);
             const data = await res.json();
-            // ADICIONADO: Mapeamento de Filme ou Série baseado no TMDB
             renderGrid(data.results.filter(i => i.poster_path).map(i => ({ 
                 name: (i.title || i.name).replace(/'/g, ""), 
                 img: `https://image.tmdb.org/t/p/w500${i.poster_path}`,
@@ -180,7 +179,7 @@
 
         // --- MODAL ---
         function openModal(name, img, mediaType) {
-            currentItem = { name, img, mediaType }; // ADICIONADO: Passando o tipo (Série/Filme)
+            currentItem = { name, img, mediaType };
             document.getElementById('modalTitle').innerText = name;
             document.getElementById('modal-poster').innerHTML = `<img src="${img}" class="w-full h-full object-cover">`;
             document.getElementById('modal').classList.remove('hidden');
@@ -213,7 +212,9 @@
                 }
             }
 
-            await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify({ ...currentItem, user, email, type, obs, status: 'Pendente', date: new Date().toLocaleString('pt-BR'), timestamp: agora }) });
+            // Msg padrão ao criar (Pendente)
+            const msgInicial = "Seu pedido já foi enviado e está na fila.";
+            await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify({ ...currentItem, user, email, type, obs, status: 'Pendente', motivo: msgInicial, date: new Date().toLocaleString('pt-BR'), timestamp: agora }) });
             Swal.fire('Enviado!', 'Sua solicitação está na fila.', 'success');
             btn.disabled = false; btn.innerText = "ENVIAR PEDIDO";
             closeModal();
@@ -261,7 +262,6 @@
 
                 countMap[p.name] = (countMap[p.name] || 0) + 1;
 
-                // LÓGICA DE FILTRO ATUALIZADA
                 if(currentFilter === 'Conserto' && p.type !== 'Conserto') return;
                 if(currentFilter === 'Pendente' && p.status !== 'Pendente') return;
                 if(currentFilter === 'Em Análise' && p.status !== 'Em Análise') return;
@@ -272,7 +272,6 @@
                 const isUrgente = p.type === 'Conserto' ? 'urgente' : '';
                 const obsBtn = p.obs ? `<button onclick="Swal.fire('Observação', '${p.obs.replace(/'/g, "\\'")}', 'info')" class="text-yellow-500 ml-2 hover:scale-110"><i class="fas fa-comment-dots"></i></button>` : '';
 
-                // ADICIONADO: Exibição do p.mediaType no Admin
                 table.innerHTML += `
                     <tr class="hover:bg-white/5 transition">
                         <td class="p-6 flex gap-4 items-center">
@@ -319,11 +318,25 @@
                 </div>`).join('') || 'Sem dados ainda...';
         }
 
+        // --- NOVA FUNÇÃO DE MUDANÇA AUTOMÁTICA DE STATUS ---
         async function handleStatusChange(id, newStatus) {
-            const { value: resp } = await Swal.fire({ title: 'Resposta ao Cliente', input: 'textarea', inputPlaceholder: 'Escreva sua mensagem personalizada...', showCancelButton: true });
-            if (resp === undefined) { loadAdmin(); return; }
-            const motivo = resp || (newStatus === 'Concluído' ? "Pedido atendido!" : "Pedido rejeitado.");
-            await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'PATCH', body: JSON.stringify({ status: newStatus, motivo: motivo }) });
+            // Mensagens automáticas pré-definidas
+            const mensagens = {
+                'Pendente': 'Seu pedido já foi enviado e está na fila.',
+                'Em Análise': 'Seu pedido está em analise pela nosso equipe!',
+                'Rejeitado': 'Conteúdo de baixa relevância ou já existe no servidor.',
+                'Concluído': 'EBA! O conteúdo foi aprovado e logo será adicionado no servidor!'
+            };
+            
+            const motivo = mensagens[newStatus] || 'Status atualizado.';
+            
+            // Salva direto sem perguntar nada
+            await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { 
+                method: 'PATCH', 
+                body: JSON.stringify({ status: newStatus, motivo: motivo }) 
+            });
+            
+            // Recarrega a tela
             loadAdmin();
         }
 
