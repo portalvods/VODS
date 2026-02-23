@@ -97,6 +97,7 @@
                         <button onclick="filterAdmin('Pendente')" class="bg-yellow-500/20 text-yellow-500 px-4 py-2 rounded-xl text-xs font-bold">Pendentes</button>
                         <button onclick="filterAdmin('Em Análise')" class="bg-blue-500/20 text-blue-500 px-4 py-2 rounded-xl text-xs font-bold">Análise</button>
                         <button onclick="filterAdmin('Rejeitado')" class="bg-rose-500/20 text-rose-500 px-4 py-2 rounded-xl text-xs font-bold">Rejeitados</button>
+                        <button onclick="filterAdmin('Concluído')" class="bg-green-500/20 text-green-500 px-4 py-2 rounded-xl text-xs font-bold">Concluídos</button>
                     </div>
                     <input type="text" id="adminSearch" onkeyup="loadAdmin()" placeholder="Buscar por nome ou email..." class="input-dark p-3 rounded-xl text-xs w-full md:w-64">
                 </div>
@@ -212,7 +213,6 @@
                 }
             }
 
-            // Msg padrão ao criar (Pendente)
             const msgInicial = "Seu pedido já foi enviado e está na fila.";
             await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify({ ...currentItem, user, email, type, obs, status: 'Pendente', motivo: msgInicial, date: new Date().toLocaleString('pt-BR'), timestamp: agora }) });
             Swal.fire('Enviado!', 'Sua solicitação está na fila.', 'success');
@@ -266,6 +266,8 @@
                 if(currentFilter === 'Pendente' && p.status !== 'Pendente') return;
                 if(currentFilter === 'Em Análise' && p.status !== 'Em Análise') return;
                 if(currentFilter === 'Rejeitado' && p.status !== 'Rejeitado') return;
+                // LÓGICA DO FILTRO CONCLUÍDO ADICIONADA
+                if(currentFilter === 'Concluído' && p.status !== 'Concluído') return;
 
                 if(search && !p.name.toLowerCase().includes(search) && !p.email.toLowerCase().includes(search)) return;
 
@@ -318,9 +320,7 @@
                 </div>`).join('') || 'Sem dados ainda...';
         }
 
-        // --- NOVA FUNÇÃO DE MUDANÇA AUTOMÁTICA DE STATUS ---
         async function handleStatusChange(id, newStatus) {
-            // Mensagens automáticas pré-definidas
             const mensagens = {
                 'Pendente': 'Seu pedido já foi enviado e está na fila.',
                 'Em Análise': 'Seu pedido está em analise pela nosso equipe!',
@@ -330,13 +330,11 @@
             
             const motivo = mensagens[newStatus] || 'Status atualizado.';
             
-            // Salva direto sem perguntar nada
             await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { 
                 method: 'PATCH', 
                 body: JSON.stringify({ status: newStatus, motivo: motivo }) 
             });
             
-            // Recarrega a tela
             loadAdmin();
         }
 
