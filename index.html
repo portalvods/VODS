@@ -69,7 +69,7 @@
         <div class="glass p-10 rounded-[32px]">
             <h2 class="text-3xl font-black mb-8">Status do Pedido</h2>
             <div class="flex gap-3 mb-8">
-                <input type="email" id="trackEmail" placeholder="Seu e-mail cadastrado" class="flex-1 input-dark p-4 rounded-2xl">
+                <input type="tel" id="trackWpp" placeholder="Seu WhatsApp (Somente números)" class="flex-1 input-dark p-4 rounded-2xl">
                 <button onclick="trackRequests()" class="bg-blue-600 px-8 rounded-2xl font-bold">Buscar</button>
             </div>
             <div id="track-results" class="space-y-5"></div>
@@ -99,7 +99,7 @@
                         <button onclick="filterAdmin('Rejeitado')" class="bg-rose-500/20 text-rose-500 px-4 py-2 rounded-xl text-xs font-bold">Rejeitados</button>
                         <button onclick="filterAdmin('Concluído')" class="bg-green-500/20 text-green-500 px-4 py-2 rounded-xl text-xs font-bold">Concluídos</button>
                     </div>
-                    <input type="text" id="adminSearch" onkeyup="loadAdmin()" placeholder="Buscar por nome ou email..." class="input-dark p-3 rounded-xl text-xs w-full md:w-64">
+                    <input type="text" id="adminSearch" onkeyup="loadAdmin()" placeholder="Buscar por nome ou whatsapp..." class="input-dark p-3 rounded-xl text-xs w-full md:w-64">
                 </div>
                 <div class="flex justify-between items-center">
                     <button onclick="clearFinished()" class="text-red-500 text-[10px] font-black uppercase hover:underline"><i class="fas fa-trash mr-1"></i> Limpar Concluídos</button>
@@ -124,7 +124,7 @@
             <h3 class="text-2xl font-black text-center mb-8" id="modalTitle"></h3>
             <div class="space-y-4">
                 <input type="text" id="userName" placeholder="Nome" class="w-full input-dark p-4 rounded-2xl">
-                <input type="email" id="userEmail" placeholder="E-mail" class="w-full input-dark p-4 rounded-2xl">
+                <input type="tel" id="userWpp" placeholder="WhatsApp (Ex: 11999998888)" class="w-full input-dark p-4 rounded-2xl" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                 <select id="requestType" class="w-full input-dark p-4 rounded-2xl">
                     <option value="Adição">🎬 Solicitar Adição</option>
                     <option value="Conserto">🛠️ Relatar Problema (Conserto)</option>
@@ -192,15 +192,13 @@
                     const img = new Image();
                     img.onload = () => {
                         const canvas = document.createElement('canvas');
-                        const MAX_WIDTH = 600; // Reduz a imagem para no máximo 600px de largura
+                        const MAX_WIDTH = 600; 
                         const scaleSize = MAX_WIDTH / img.width;
                         canvas.width = MAX_WIDTH;
                         canvas.height = img.height * scaleSize;
                         
                         const ctx = canvas.getContext('2d');
                         ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                        
-                        // Retorna em Base64 com qualidade de 70%
                         resolve(canvas.toDataURL('image/jpeg', 0.7)); 
                     };
                     img.src = event.target.result;
@@ -214,7 +212,7 @@
             currentItem = { name, img, mediaType };
             document.getElementById('modalTitle').innerText = name;
             document.getElementById('modal-poster').innerHTML = `<img src="${img}" class="w-full h-full object-cover">`;
-            document.getElementById('userPhoto').value = ""; // Limpa o campo de foto anterior
+            document.getElementById('userPhoto').value = ""; 
             document.getElementById('modal').classList.remove('hidden');
         }
         function closeModal() { document.getElementById('modal').classList.add('hidden'); }
@@ -222,12 +220,13 @@
         // --- FIREBASE SAVE ---
         async function saveToFirebase() {
             const user = document.getElementById('userName').value.trim();
-            const email = document.getElementById('userEmail').value.trim().toLowerCase();
+            const wpp = document.getElementById('userWpp').value.trim();
             const obs = document.getElementById('userObs').value.trim();
             const type = document.getElementById('requestType').value;
             const photoInput = document.getElementById('userPhoto');
             
-            if(!user || !email) return Swal.fire('Erro', 'Nome e e-mail são obrigatórios!', 'warning');
+            if(!user || !wpp) return Swal.fire('Erro', 'Nome e WhatsApp são obrigatórios!', 'warning');
+            if(wpp.length < 10) return Swal.fire('Erro', 'Digite um WhatsApp válido com DDD.', 'error');
 
             const btn = document.getElementById('btnEnviar');
             btn.disabled = true; btn.innerText = "COMPRIMINDO IMAGEM E ENVIANDO...";
@@ -241,10 +240,11 @@
             const data = await resData.json();
             const agora = new Date().getTime();
 
+            // Regra de limite diário baseada no WhatsApp agora
             if (data) {
-                const pedidosEmail = Object.values(data).filter(p => p.email === email);
-                if (pedidosEmail.length > 0) {
-                    const ultimo = pedidosEmail.sort((a, b) => b.timestamp - a.timestamp)[0];
+                const pedidosWpp = Object.values(data).filter(p => p.wpp === wpp);
+                if (pedidosWpp.length > 0) {
+                    const ultimo = pedidosWpp.sort((a, b) => b.timestamp - a.timestamp)[0];
                     if (agora - ultimo.timestamp < 24 * 60 * 60 * 1000) {
                         btn.disabled = false; btn.innerText = "ENVIAR PEDIDO";
                         return Swal.fire('Limite', 'Você já fez um pedido hoje. Tente amanhã!', 'error');
@@ -256,25 +256,27 @@
             await fetch(DATABASE_URL, { 
                 method: 'POST', 
                 body: JSON.stringify({ 
-                    ...currentItem, user, email, type, obs, anexo: anexoData, status: 'Pendente', motivo: msgInicial, date: new Date().toLocaleString('pt-BR'), timestamp: agora 
+                    ...currentItem, user, wpp, type, obs, anexo: anexoData, status: 'Pendente', motivo: msgInicial, date: new Date().toLocaleString('pt-BR'), timestamp: agora 
                 }) 
             });
             
-            Swal.fire('Enviado!', 'Sua solicitação está na fila.', 'success');
+            Swal.fire('Enviado!', 'Sua solicitação está na fila. Avisaremos no seu WhatsApp!', 'success');
             btn.disabled = false; btn.innerText = "ENVIAR PEDIDO";
             closeModal();
         }
 
         // --- CLIENTE: RASTREIO ---
         async function trackRequests() {
-            const email = document.getElementById('trackEmail').value.trim().toLowerCase();
+            const wpp = document.getElementById('trackWpp').value.trim();
+            if(!wpp) return Swal.fire('Atenção', 'Digite seu número do WhatsApp para buscar.', 'warning');
+
             const res = await fetch(DATABASE_URL);
             const data = await res.json();
             const container = document.getElementById('track-results');
             container.innerHTML = "";
             if(!data) return;
             Object.values(data).reverse().forEach(p => {
-                if(p.email === email) {
+                if(p.wpp === wpp) {
                     let feedback = p.motivo ? `<button onclick="Swal.fire('Equipe Diz:', '${p.motivo.replace(/'/g, "\\'")}', 'info')" class="text-[10px] text-blue-400 font-bold underline mt-2 block uppercase">Ver Resposta</button>` : '';
                     let anexoIcon = p.anexo ? `<span class="text-blue-400 text-[10px] mt-1 block"><i class="fas fa-image"></i> Anexo enviado</span>` : '';
                     
@@ -315,11 +317,15 @@
                 if(currentFilter === 'Rejeitado' && p.status !== 'Rejeitado') return;
                 if(currentFilter === 'Concluído' && p.status !== 'Concluído') return;
 
-                if(search && !p.name.toLowerCase().includes(search) && !p.email.toLowerCase().includes(search)) return;
+                // Busca agora também pelo WhatsApp
+                if(search && !p.name.toLowerCase().includes(search) && (!p.wpp || !p.wpp.includes(search))) return;
 
                 const isUrgente = p.type === 'Conserto' ? 'urgente' : '';
                 const obsBtn = p.obs ? `<button onclick="Swal.fire('Observação', '${p.obs.replace(/'/g, "\\'")}', 'info')" class="text-yellow-500 ml-2 hover:scale-110"><i class="fas fa-comment-dots"></i></button>` : '';
                 const anexoBtn = p.anexo ? `<button onclick="Swal.fire({imageUrl: '${p.anexo}', imageAlt: 'Anexo do cliente', background: '#111827'})" class="text-blue-400 ml-2 hover:scale-110" title="Ver Print"><i class="fas fa-image"></i></button>` : '';
+                
+                // Botão manual de WhatsApp direto do painel (como um quebra-galho enquanto o robô não fica pronto)
+                const wppDirectBtn = p.wpp ? `<a href="https://wa.me/55${p.wpp}" target="_blank" class="text-green-500 ml-2 hover:scale-110" title="Chamar no WhatsApp"><i class="fab fa-whatsapp"></i></a>` : '';
 
                 table.innerHTML += `
                     <tr class="hover:bg-white/5 transition">
@@ -333,7 +339,7 @@
                                 ${p.obs ? `<p class="text-[9px] text-slate-500 truncate w-32 italic">${p.obs}</p>` : ''}
                             </div>
                         </td>
-                        <td class="p-6 text-xs text-slate-400"><b>${p.user}</b><br>${p.email}<br><span class="text-blue-400 text-[10px] mt-1 block"><i class="far fa-calendar-alt"></i> ${p.date || 'Data não registrada'}</span></td>
+                        <td class="p-6 text-xs text-slate-400"><b>${p.user}</b><br><i class="fab fa-whatsapp text-green-500"></i> ${p.wpp || 'Sem número'}<br><span class="text-blue-400 text-[10px] mt-1 block"><i class="far fa-calendar-alt"></i> ${p.date || 'Data não registrada'}</span></td>
                         <td class="p-6"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span></td>
                         <td class="p-6 text-center flex items-center justify-center">
                             <select onchange="handleStatusChange('${id}', this.value)" class="text-[10px] p-2 bg-slate-800 rounded-xl outline-none mr-2">
@@ -344,6 +350,7 @@
                             </select>
                             ${obsBtn}
                             ${anexoBtn}
+                            ${wppDirectBtn}
                             <button onclick="deletePedido('${id}')" class="text-slate-500 hover:text-red-500 transition ml-2"><i class="fas fa-trash-alt"></i></button>
                         </td>
                     </tr>`;
@@ -400,8 +407,8 @@
         }
 
         function exportToExcel() {
-            let csv = "Nome;Email;Conteudo;Tipo;Status;Data\n";
-            Object.values(allPedidos).forEach(p => { csv += `${p.user};${p.email};${p.name};${p.type};${p.status};${p.date}\n`; });
+            let csv = "Nome;WhatsApp;Conteudo;Tipo;Status;Data\n";
+            Object.values(allPedidos).forEach(p => { csv += `${p.user};${p.wpp};${p.name};${p.type};${p.status};${p.date}\n`; });
             const blob = new Blob([csv], { type: 'text/csv' });
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'pedidos_vod.csv'; a.click();
         }
