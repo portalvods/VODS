@@ -40,7 +40,7 @@
         let searchMode = 'movie';
         let allPedidos = {}; 
         let currentUserLogado = null;
-        let tempWppForOTP = null; // Guarda o numero temporariamente para validar o codigo
+        let tempWppForOTP = null; 
     </script>
 
     <header id="main-header" class="container mx-auto flex flex-col md:flex-row justify-between items-center mb-12 gap-6 hidden">
@@ -87,7 +87,11 @@
             <div class="space-y-4">
                 <input type="text" id="otpCode" placeholder="000000" maxlength="6" class="w-full input-dark p-4 rounded-2xl text-center text-2xl font-black tracking-widest" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                 <button onclick="verifyOTP()" id="btnOtp" class="w-full py-4 bg-green-600 rounded-2xl font-black shadow-lg hover:bg-green-700 transition">CONFIRMAR CÓDIGO</button>
-                <button onclick="cancelOTP()" class="w-full text-slate-500 font-bold mt-4 text-sm">Voltar</button>
+                
+                <div class="flex justify-between items-center mt-4">
+                    <button onclick="resendOTP()" id="btnResend" class="text-blue-500 font-bold text-sm hover:underline">Reenviar Código</button>
+                    <button onclick="cancelOTP()" class="text-slate-500 font-bold text-sm hover:underline">Voltar</button>
+                </div>
             </div>
         </div>
     </main>
@@ -182,9 +186,6 @@
     </div>
 
     <script>
-        // --- SISTEMA DE CONTAS (WHATSAPP + SENHA) ---
-        
-        // Verifica se já estava logado antes
         window.onload = () => {
             const savedUser = localStorage.getItem('vod_user');
             if(savedUser) {
@@ -211,7 +212,6 @@
             btn.disabled = true; btn.innerText = "VERIFICANDO...";
 
             try {
-                // Checa se usuário já existe
                 const res = await fetch(`${USERS_URL}/${wpp}.json`);
                 const userExists = await res.json();
 
@@ -222,16 +222,13 @@
                     return;
                 }
 
-                // Gera o código de 6 dígitos
                 const codigoOTP = Math.floor(100000 + Math.random() * 900000).toString();
 
-                // Salva no banco de dados para o Robô ler
                 await fetch(`${USERS_URL}/${wpp}.json`, {
                     method: 'PUT',
                     body: JSON.stringify({ nome, wpp, senha, codigo: codigoOTP, verificado: false, codigoEnviado: false })
                 });
 
-                // Prepara a tela de OTP
                 tempWppForOTP = wpp;
                 document.getElementById('page-auth').classList.add('hidden');
                 document.getElementById('page-otp').classList.remove('hidden');
@@ -242,6 +239,45 @@
             } catch(e) {
                 btn.disabled = false; btn.innerText = "CRIAR CONTA";
                 Swal.fire('Erro', 'Falha na conexão com o banco de dados.', 'error');
+            }
+        }
+
+        // --- NOVA FUNÇÃO: REENVIAR CÓDIGO ---
+        async function resendOTP() {
+            const btn = document.getElementById('btnResend');
+            
+            // Trava o botão
+            btn.disabled = true;
+            btn.innerText = "Aguarde 30s...";
+            btn.classList.add('text-slate-500');
+            btn.classList.remove('text-blue-500');
+
+            try {
+                // Gera um código novinho em folha
+                const novoCodigo = Math.floor(100000 + Math.random() * 900000).toString();
+                
+                // Manda pro Firebase, avisando pro robô disparar de novo
+                await fetch(`${USERS_URL}/${tempWppForOTP}.json`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ codigo: novoCodigo, codigoEnviado: false })
+                });
+
+                Swal.fire('Novo código solicitado!', 'Verifique o seu WhatsApp em alguns segundos.', 'success');
+                
+                // Destrava o botão depois de 30 segundos
+                setTimeout(() => {
+                    btn.disabled = false;
+                    btn.innerText = "Reenviar Código";
+                    btn.classList.remove('text-slate-500');
+                    btn.classList.add('text-blue-500');
+                }, 30000);
+
+            } catch(e) {
+                Swal.fire('Erro', 'Falha ao reenviar código.', 'error');
+                btn.disabled = false;
+                btn.innerText = "Reenviar Código";
+                btn.classList.remove('text-slate-500');
+                btn.classList.add('text-blue-500');
             }
         }
 
@@ -257,7 +293,6 @@
                 const user = await res.json();
 
                 if(user && user.codigo === digitado) {
-                    // Código bateu! Atualiza para verificado
                     await fetch(`${USERS_URL}/${tempWppForOTP}.json`, {
                         method: 'PATCH',
                         body: JSON.stringify({ verificado: true })
@@ -297,7 +332,6 @@
                         localStorage.setItem('vod_user', JSON.stringify(user));
                         ativarModoLogado();
                     } else {
-                        // Se não terminou de verificar da última vez
                         tempWppForOTP = wpp;
                         document.getElementById('page-auth').classList.add('hidden');
                         document.getElementById('page-otp').classList.remove('hidden');
@@ -322,7 +356,7 @@
             currentUserLogado = null;
             localStorage.removeItem('vod_user');
             document.getElementById('main-header').classList.add('hidden');
-            showPage('auth'); // Força a voltar pro painel limpo
+            showPage('auth');
         }
 
         function ativarModoLogado() {
@@ -333,10 +367,8 @@
             showPage('cliente');
         }
 
-        // --- NAVEGAÇÃO E BUSCA TMDB ---
         function showPage(page) {
             document.querySelectorAll('main').forEach(m => m.classList.add('hidden'));
-            // Se tentar acessar cliente/status sem logar, barra!
             if(!currentUserLogado && page !== 'auth') {
                 document.getElementById('page-auth').classList.remove('hidden');
                 return;
@@ -345,7 +377,7 @@
             if(alvo) alvo.classList.remove('hidden');
             
             if(page === 'admin') loadAdmin();
-            if(page === 'status') trackRequests(); // Auto carrega os status dele
+            if(page === 'status') trackRequests(); 
         }
 
         function setSearchMode(mode) {
@@ -381,7 +413,6 @@
                 </div>`).join('');
         }
 
-        // --- COMPRESSOR DE IMAGEM ---
         function compressImage(file) {
             return new Promise((resolve) => {
                 const reader = new FileReader();
@@ -403,7 +434,6 @@
             });
         }
 
-        // --- MODAL ---
         function openModal(name, img, mediaType) {
             currentItem = { name, img, mediaType };
             document.getElementById('modalTitle').innerText = name;
@@ -413,12 +443,9 @@
         }
         function closeModal() { document.getElementById('modal').classList.add('hidden'); }
 
-        // --- FIREBASE SAVE ---
         async function saveToFirebase() {
-            // Puxa nome e wpp direto da conta logada de forma invisível!
             const user = currentUserLogado.nome;
             const wpp = currentUserLogado.wpp;
-            
             const obs = document.getElementById('userObs').value.trim();
             const type = document.getElementById('requestType').value;
             const photoInput = document.getElementById('userPhoto');
@@ -459,13 +486,12 @@
             Swal.fire('Enviado!', 'Sua solicitação está na fila.', 'success');
             btn.disabled = false; btn.innerText = "ENVIAR PEDIDO";
             closeModal();
-            trackRequests(); // Atualiza painel de status dele
+            trackRequests(); 
         }
 
-        // --- CLIENTE: RASTREIO AUTOMÁTICO ---
         async function trackRequests() {
             if(!currentUserLogado) return;
-            const wpp = currentUserLogado.wpp; // Rastrea só pelo número do cliente logado
+            const wpp = currentUserLogado.wpp; 
 
             const res = await fetch(DATABASE_URL);
             const data = await res.json();
@@ -491,7 +517,6 @@
             if(!encontrou) container.innerHTML = "<p class='text-slate-500'>Você ainda não fez nenhum pedido.</p>";
         }
 
-        // --- ADMIN: LÓGICA ---
         let currentFilter = 'Tudo';
         function filterAdmin(tipo) { currentFilter = tipo; loadAdmin(); }
 
