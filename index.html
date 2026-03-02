@@ -119,7 +119,7 @@
     </main>
 
     <div id="modal" class="fixed inset-0 bg-black/90 hidden flex items-center justify-center p-4 z-50 backdrop-blur-xl">
-        <div class="glass rounded-[40px] max-w-md w-full p-10">
+        <div class="glass rounded-[40px] max-w-md w-full p-10 h-max max-h-screen overflow-y-auto">
             <div id="modal-poster" class="w-32 h-44 bg-slate-800 rounded-3xl mb-6 mx-auto overflow-hidden border border-slate-700"></div>
             <h3 class="text-2xl font-black text-center mb-8" id="modalTitle"></h3>
             <div class="space-y-4">
@@ -131,7 +131,13 @@
                     <option value="Atualização">🔄 Solicitar Atualização</option>
                 </select>
                 <textarea id="userObs" placeholder="Ex: Sem áudio no ep 2..." class="w-full input-dark p-4 rounded-2xl h-24"></textarea>
-                <button id="btnEnviar" onclick="saveToFirebase()" class="w-full py-5 bg-blue-600 rounded-[24px] font-black shadow-lg hover:bg-blue-700 transition">ENVIAR PEDIDO</button>
+                
+                <div class="bg-slate-800/50 p-4 rounded-2xl border border-slate-700">
+                    <label class="block text-xs font-bold text-slate-400 mb-2"><i class="fas fa-camera"></i> Anexar Print/Foto (Opcional)</label>
+                    <input type="file" id="userPhoto" accept="image/*" class="w-full text-slate-400 text-xs file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-blue-600 file:text-white hover:file:bg-blue-700 transition cursor-pointer">
+                </div>
+
+                <button id="btnEnviar" onclick="saveToFirebase()" class="w-full py-5 bg-blue-600 rounded-[24px] font-black shadow-lg hover:bg-blue-700 transition mt-2">ENVIAR PEDIDO</button>
                 <button onclick="closeModal()" class="w-full text-slate-500 font-bold mt-4">CANCELAR</button>
             </div>
         </div>
@@ -178,11 +184,37 @@
                 </div>`).join('');
         }
 
+        // --- COMPRESSOR DE IMAGEM ---
+        function compressImage(file) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        const MAX_WIDTH = 600; // Reduz a imagem para no máximo 600px de largura
+                        const scaleSize = MAX_WIDTH / img.width;
+                        canvas.width = MAX_WIDTH;
+                        canvas.height = img.height * scaleSize;
+                        
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        
+                        // Retorna em Base64 com qualidade de 70%
+                        resolve(canvas.toDataURL('image/jpeg', 0.7)); 
+                    };
+                    img.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
         // --- MODAL ---
         function openModal(name, img, mediaType) {
             currentItem = { name, img, mediaType };
             document.getElementById('modalTitle').innerText = name;
             document.getElementById('modal-poster').innerHTML = `<img src="${img}" class="w-full h-full object-cover">`;
+            document.getElementById('userPhoto').value = ""; // Limpa o campo de foto anterior
             document.getElementById('modal').classList.remove('hidden');
         }
         function closeModal() { document.getElementById('modal').classList.add('hidden'); }
@@ -193,10 +225,17 @@
             const email = document.getElementById('userEmail').value.trim().toLowerCase();
             const obs = document.getElementById('userObs').value.trim();
             const type = document.getElementById('requestType').value;
+            const photoInput = document.getElementById('userPhoto');
+            
             if(!user || !email) return Swal.fire('Erro', 'Nome e e-mail são obrigatórios!', 'warning');
 
             const btn = document.getElementById('btnEnviar');
-            btn.disabled = true; btn.innerText = "ENVIANDO...";
+            btn.disabled = true; btn.innerText = "COMPRIMINDO IMAGEM E ENVIANDO...";
+
+            let anexoData = null;
+            if (photoInput.files && photoInput.files[0]) {
+                anexoData = await compressImage(photoInput.files[0]);
+            }
 
             const resData = await fetch(DATABASE_URL);
             const data = await resData.json();
@@ -214,7 +253,13 @@
             }
 
             const msgInicial = "Seu pedido já foi enviado e está na fila.";
-            await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify({ ...currentItem, user, email, type, obs, status: 'Pendente', motivo: msgInicial, date: new Date().toLocaleString('pt-BR'), timestamp: agora }) });
+            await fetch(DATABASE_URL, { 
+                method: 'POST', 
+                body: JSON.stringify({ 
+                    ...currentItem, user, email, type, obs, anexo: anexoData, status: 'Pendente', motivo: msgInicial, date: new Date().toLocaleString('pt-BR'), timestamp: agora 
+                }) 
+            });
+            
             Swal.fire('Enviado!', 'Sua solicitação está na fila.', 'success');
             btn.disabled = false; btn.innerText = "ENVIAR PEDIDO";
             closeModal();
@@ -231,8 +276,9 @@
             Object.values(data).reverse().forEach(p => {
                 if(p.email === email) {
                     let feedback = p.motivo ? `<button onclick="Swal.fire('Equipe Diz:', '${p.motivo.replace(/'/g, "\\'")}', 'info')" class="text-[10px] text-blue-400 font-bold underline mt-2 block uppercase">Ver Resposta</button>` : '';
-                    // DATA ADICIONADA AQUI NO RASTREIO DO CLIENTE
-                    container.innerHTML += `<div class="glass p-5 rounded-3xl flex items-center gap-5 card-animate"><img src="${p.img}" class="w-14 h-20 rounded-xl object-cover"><div class="flex-1"><b class="text-white">${p.name}</b><br><span class="text-slate-500 text-[10px] uppercase font-bold">${p.type} ${p.mediaType ? '- ' + p.mediaType : ''}</span><br><span class="text-blue-400 text-[10px] mt-1 block"><i class="far fa-calendar-alt"></i> ${p.date || 'Data não registrada'}</span></div><div class="text-right"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span>${feedback}</div></div>`;
+                    let anexoIcon = p.anexo ? `<span class="text-blue-400 text-[10px] mt-1 block"><i class="fas fa-image"></i> Anexo enviado</span>` : '';
+                    
+                    container.innerHTML += `<div class="glass p-5 rounded-3xl flex items-center gap-5 card-animate"><img src="${p.img}" class="w-14 h-20 rounded-xl object-cover"><div class="flex-1"><b class="text-white">${p.name}</b><br><span class="text-slate-500 text-[10px] uppercase font-bold">${p.type} ${p.mediaType ? '- ' + p.mediaType : ''}</span><br><span class="text-blue-400 text-[10px] mt-1 block"><i class="far fa-calendar-alt"></i> ${p.date || 'Data não registrada'}</span>${anexoIcon}</div><div class="text-right"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span>${feedback}</div></div>`;
                 }
             });
         }
@@ -273,8 +319,8 @@
 
                 const isUrgente = p.type === 'Conserto' ? 'urgente' : '';
                 const obsBtn = p.obs ? `<button onclick="Swal.fire('Observação', '${p.obs.replace(/'/g, "\\'")}', 'info')" class="text-yellow-500 ml-2 hover:scale-110"><i class="fas fa-comment-dots"></i></button>` : '';
+                const anexoBtn = p.anexo ? `<button onclick="Swal.fire({imageUrl: '${p.anexo}', imageAlt: 'Anexo do cliente', background: '#111827'})" class="text-blue-400 ml-2 hover:scale-110" title="Ver Print"><i class="fas fa-image"></i></button>` : '';
 
-                // DATA ADICIONADA AQUI NA TABELA DO ADMIN
                 table.innerHTML += `
                     <tr class="hover:bg-white/5 transition">
                         <td class="p-6 flex gap-4 items-center">
@@ -297,6 +343,7 @@
                                 <option value="Rejeitado" ${p.status === 'Rejeitado' ? 'selected' : ''}>Rejeitado</option>
                             </select>
                             ${obsBtn}
+                            ${anexoBtn}
                             <button onclick="deletePedido('${id}')" class="text-slate-500 hover:text-red-500 transition ml-2"><i class="fas fa-trash-alt"></i></button>
                         </td>
                     </tr>`;
