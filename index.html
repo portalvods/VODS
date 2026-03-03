@@ -64,7 +64,7 @@
             <p class="text-slate-400 text-sm mb-8">Acesso restrito a clientes verificados.</p>
             
             <div id="form-login" class="space-y-4">
-                <input type="text" id="loginUser" placeholder="Nome de Usuário" class="w-full input-dark p-4 rounded-2xl">
+                <input type="text" id="loginUser" placeholder="Usuário ou WhatsApp" class="w-full input-dark p-4 rounded-2xl">
                 <input type="password" id="loginPass" placeholder="Sua Senha" class="w-full input-dark p-4 rounded-2xl">
                 <button onclick="loginApp()" id="btnLogin" class="w-full py-4 bg-blue-600 rounded-2xl font-black shadow-lg hover:bg-blue-700 transition">ENTRAR</button>
                 <div class="flex justify-between items-center mt-4">
@@ -240,7 +240,6 @@
             const wpp = document.getElementById('regWpp').value;
             const senha = document.getElementById('regPass').value;
 
-            // VALIDAÇÕES SOLICITADAS
             if(!username || !nome || wpp.length < 10) {
                 return Swal.fire('Atenção', 'Preencha todos os campos corretamente!', 'warning');
             }
@@ -252,7 +251,6 @@
             btn.disabled = true; btn.innerText = "VERIFICANDO...";
 
             try {
-                // VERIFICA SE O USUÁRIO OU WHATSAPP JÁ EXISTEM
                 const res = await fetch(`${USERS_URL}.json`);
                 const allUsers = await res.json() || {};
                 
@@ -285,11 +283,15 @@
             }
         }
 
+        // --- ALTERAÇÃO SOLICITADA: LOGIN POR USUÁRIO OU WHATSAPP ---
         async function loginApp() {
-            const userInp = document.getElementById('loginUser').value.trim().toLowerCase();
+            let userInp = document.getElementById('loginUser').value.trim().toLowerCase();
             const senhaInp = document.getElementById('loginPass').value;
 
             if(!userInp || !senhaInp) return Swal.fire('Atenção', 'Preencha Usuário e Senha.', 'warning');
+
+            // Limpa caracteres caso seja um número de WhatsApp (remove parênteses, traços, etc)
+            const cleanInp = userInp.replace(/[^0-9a-z]/g, '');
 
             const btn = document.getElementById('btnLogin');
             btn.disabled = true; btn.innerText = "ENTRANDO...";
@@ -298,8 +300,12 @@
                 const res = await fetch(`${USERS_URL}.json`);
                 const allUsers = await res.json() || {};
                 
-                // Busca usuário por username
-                const user = Object.values(allUsers).find(u => u.username === userInp);
+                // Busca usuário comparando com USERNAME ou WHATSAPP (com ou sem formatação básica)
+                const user = Object.values(allUsers).find(u => 
+                    u.username === userInp || 
+                    u.wpp === userInp || 
+                    u.wpp === cleanInp
+                );
 
                 if(user && user.senha === senhaInp) {
                     if(user.verificado) {
@@ -313,7 +319,7 @@
                         document.getElementById('page-otp').classList.remove('hidden');
                     }
                 } else {
-                    Swal.fire('Erro', 'Usuário ou senha incorretos!', 'error');
+                    Swal.fire('Erro', 'Usuário/WhatsApp ou senha incorretos!', 'error');
                 }
             } catch(e) {
                 Swal.fire('Erro', 'Falha ao buscar dados.', 'error');
