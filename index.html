@@ -19,8 +19,14 @@
         .status-rejeitado { background: #fee2e2; color: #991b1b; }
         .input-dark { background: #1f2937; border: 1px solid #374151; color: white; transition: all 0.3s; }
         .input-dark:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); outline: none; }
+        
+        /* Animações */
         .card-animate { animation: fadeInUp 0.4s ease forwards; }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .exit-animate { animation: scaleOut 0.4s ease forwards; pointer-events: none; }
+        @keyframes scaleOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.9) translateY(-10px); } }
+
         .urgente { border: 2px solid #ef4444 !important; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
         .swal2-popup { background: #111827 !important; color: #fff !important; border-radius: 24px !important; }
@@ -29,12 +35,10 @@
 <body class="p-4 md:p-10">
 
     <script>
-        // --- CONFIGURAÇÕES ---
         const DB_BASE = 'https://vods-23763-default-rtdb.firebaseio.com';
         const DATABASE_URL = `${DB_BASE}/pedidos.json`;
         const USERS_URL = `${DB_BASE}/usuarios`;
         const API_KEY_TMDB = '9e64130cb366f23a3398f4f7c8e982c0';
-        
         const ADMIN_WPP = '91988478336'; 
         
         let currentItem = {};
@@ -43,6 +47,7 @@
         let currentUserLogado = null;
         let tempWppForOTP = null; 
         let authFluxo = 'registro'; 
+        let rankingResetado = false; // Controle para zerar apenas visualmente
     </script>
 
     <header id="main-header" class="container mx-auto flex flex-col md:flex-row justify-between items-center mb-12 gap-6 hidden">
@@ -129,7 +134,7 @@
     <main id="page-admin" class="container mx-auto max-w-7xl hidden">
         <div class="flex justify-between items-center mb-8">
             <h2 class="text-3xl font-black text-blue-500"><i class="fas fa-shield-alt mr-2 text-white"></i> PAINEL ADMIN</h2>
-            <button onclick="verTodosUsuarios()" class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-xl text-xs font-bold uppercase"><i class="fas fa-users mr-2"></i> Ver Todos os clientes cadastrados</button>
+            <button onclick="verTodosUsuarios()" class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-xl text-xs font-bold uppercase"><i class="fas fa-users mr-2"></i> Ver Clientes</button>
         </div>
 
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -143,7 +148,7 @@
             <div class="glass p-6 rounded-[32px] lg:col-span-1">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="font-black flex items-center gap-2"><i class="fas fa-trophy text-yellow-500"></i> TOP PEDIDOS</h3>
-                    <button onclick="clearTopPedidos()" class="text-red-500 text-[9px] font-black uppercase hover:underline">Zerar Top</button>
+                    <button onclick="clearTopPedidos()" class="text-red-500 text-[9px] font-black uppercase hover:underline">Zerar Ranking</button>
                 </div>
                 <div id="ranking-list" class="space-y-3 text-sm text-slate-300"></div>
             </div>
@@ -153,8 +158,6 @@
                         <button onclick="filterAdmin('Tudo')" class="bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold text-white">Tudo</button>
                         <button onclick="filterAdmin('Conserto')" class="bg-red-500/20 text-red-500 px-4 py-2 rounded-xl text-xs font-bold border border-red-500/30">Consertos</button>
                         <button onclick="filterAdmin('Pendente')" class="bg-yellow-500/20 text-yellow-500 px-4 py-2 rounded-xl text-xs font-bold border border-yellow-500/30">Pendentes</button>
-                        <button onclick="filterAdmin('Em Análise')" class="bg-blue-500/20 text-blue-500 px-4 py-2 rounded-xl text-xs font-bold border border-blue-500/30">Análise</button>
-                        <button onclick="filterAdmin('Rejeitado')" class="bg-rose-500/20 text-rose-500 px-4 py-2 rounded-xl text-xs font-bold border border-rose-500/30">Rejeitados</button>
                         <button onclick="filterAdmin('Concluído')" class="bg-green-500/20 text-green-500 px-4 py-2 rounded-xl text-xs font-bold border border-green-500/30">Concluídos</button>
                     </div>
                     <input type="text" id="adminSearch" onkeyup="loadAdmin()" placeholder="Buscar..." class="input-dark p-3 rounded-xl text-xs w-full md:w-48">
@@ -171,7 +174,7 @@
                     <tr>
                         <th class="p-6">Conteúdo / Obs</th>
                         <th class="p-6">Solicitante</th>
-                        <th class="p-6">Data / Hora</th> <th class="p-6">Status</th>
+                        <th class="p-6">Data</th> 
                         <th class="p-6 text-center">Ações</th>
                     </tr>
                 </thead>
@@ -191,7 +194,6 @@
                     <option value="Atualização">🔄 Solicitar Atualização</option>
                 </select>
                 <textarea id="userObs" placeholder="Observações..." class="w-full input-dark p-4 rounded-2xl h-24"></textarea>
-                <input type="file" id="userPhoto" accept="image/*" class="w-full text-slate-400 text-xs">
                 <button id="btnEnviar" onclick="saveToFirebase()" class="w-full py-5 bg-blue-600 rounded-[24px] font-black shadow-lg">ENVIAR PEDIDO</button>
                 <button onclick="closeModal()" class="w-full text-slate-500 font-bold mt-4">CANCELAR</button>
             </div>
@@ -416,7 +418,7 @@
                 if(search && !p.name.toLowerCase().includes(search)) return;
 
                 table.innerHTML += `
-                    <tr class="hover:bg-white/5 transition">
+                    <tr id="row-${id}" class="hover:bg-white/5 transition">
                         <td class="p-6 flex gap-4 items-center">
                             <img src="${p.img}" class="w-12 h-16 rounded-xl object-cover ${p.type === 'Conserto' ? 'urgente' : ''}">
                             <div><p class="font-bold text-sm text-white">${p.name}</p><span class="text-[9px] uppercase font-black">${p.type}</span></div>
@@ -430,9 +432,9 @@
                                 </a>
                             </div>
                         </td>
-                        <td class="p-6 text-[10px] text-blue-400 font-bold">${p.date || '---'}</td> <td class="p-6"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span></td>
+                        <td class="p-6 text-[10px] text-blue-400 font-bold">${p.date || '---'}<br><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span></td>
                         <td class="p-6 text-center">
-                            <select onchange="handleStatusChange('${id}', this.value)" class="text-[10px] p-2 bg-slate-800 rounded-xl">
+                            <select onchange="handleStatusChange('${id}', this.value)" class="text-[10px] p-2 bg-slate-800 rounded-xl mb-2 w-full">
                                 <option value="Pendente" ${p.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
                                 <option value="Em Análise" ${p.status === 'Em Análise' ? 'selected' : ''}>Análise</option>
                                 <option value="Concluído" ${p.status === 'Concluído' ? 'selected' : ''}>Concluído</option>
@@ -443,7 +445,7 @@
                     </tr>`;
             });
             updateStats(stats);
-            renderRanking(countMap);
+            if(!rankingResetado) renderRanking(countMap);
         }
 
         function updateStats(s) {
@@ -454,9 +456,14 @@
         }
 
         function renderRanking(map) {
+            const rankingList = document.getElementById('ranking-list');
+            if(rankingResetado) {
+                rankingList.innerHTML = "<p class='text-slate-500 italic text-xs py-4'>Ranking resetado nesta sessão.</p>";
+                return;
+            }
             const sorted = Object.entries(map).sort((a,b) => b[1] - a[1]).slice(0, 5);
-            document.getElementById('ranking-list').innerHTML = sorted.map(([name, count], i) => `
-                <div class="flex justify-between items-center bg-white/5 p-2 rounded-lg mb-2">
+            rankingList.innerHTML = sorted.map(([name, count], i) => `
+                <div class="flex justify-between items-center bg-white/5 p-2 rounded-lg mb-2 card-animate">
                     <span class="truncate pr-2">${i+1}. ${name}</span><span class="bg-blue-600 px-2 rounded text-[10px] font-black">${count}x</span>
                 </div>`).join('');
         }
@@ -468,28 +475,29 @@
 
         async function deletePedido(id) {
             if (confirm('Excluir este pedido?')) { 
-                await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' }); 
-                loadAdmin(); 
+                const row = document.getElementById(`row-${id}`);
+                row.classList.add('exit-animate');
+                setTimeout(async () => {
+                    await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' }); 
+                    loadAdmin(); 
+                }, 400);
             }
         }
 
+        // Função para zerar apenas visualmente o ranking
         async function clearTopPedidos() {
             Swal.fire({
-                title: 'Zerar Ranking?',
-                text: "Isso apagará o histórico de pedidos para zerar as estatísticas.",
-                icon: 'warning',
+                title: 'Zerar Ranking Visual?',
+                text: "Isso limpará apenas a lista de 'Top Pedidos'. Os registros na tabela continuarão salvos.",
+                icon: 'question',
                 showCancelButton: true,
-                confirmButtonColor: '#d33',
-                cancelButtonColor: '#3085d6',
-                confirmButtonText: 'Sim, zerar!',
+                confirmButtonText: 'Sim, zerar visual',
                 cancelButtonText: 'Cancelar'
-            }).then(async (result) => {
+            }).then((result) => {
                 if (result.isConfirmed) {
-                    try {
-                        await fetch(DATABASE_URL, { method: 'DELETE' });
-                        Swal.fire('Sucesso', 'Ranking zerado.', 'success');
-                        loadAdmin();
-                    } catch(e) { Swal.fire('Erro', 'Falha ao zerar.', 'error'); }
+                    rankingResetado = true;
+                    renderRanking({});
+                    Swal.fire('Limpo!', 'O ranking foi resetado visualmente.', 'success');
                 }
             });
         }
@@ -502,7 +510,7 @@
                 if(users) {
                     Object.values(users).forEach(u => {
                         lista += `
-                        <div class="flex justify-between items-center border-b border-slate-700 py-3">
+                        <div id="user-${u.wpp}" class="flex justify-between items-center border-b border-slate-700 py-3 transition-all">
                             <div class="text-left">
                                 <p class="text-sm font-bold">${u.nome}</p>
                                 <p class="text-xs text-blue-400">@${u.username} | ${u.wpp}</p>
@@ -523,11 +531,16 @@
 
         async function deleteUsuario(wpp) {
             if (confirm(`Tem certeza que deseja excluir o cliente com WhatsApp ${wpp}?`)) {
-                try {
-                    await fetch(`${USERS_URL}/${wpp}.json`, { method: 'DELETE' });
-                    Swal.fire('Excluído!', 'O cliente foi removido.', 'success');
-                    verTodosUsuarios(); 
-                } catch(e) { Swal.fire('Erro', 'Falha na exclusão.', 'error'); }
+                const userRow = document.getElementById(`user-${wpp}`);
+                if(userRow) userRow.classList.add('exit-animate');
+                
+                setTimeout(async () => {
+                    try {
+                        await fetch(`${USERS_URL}/${wpp}.json`, { method: 'DELETE' });
+                        Swal.fire('Excluído!', 'O cliente foi removido.', 'success');
+                        verTodosUsuarios(); 
+                    } catch(e) { Swal.fire('Erro', 'Falha na exclusão.', 'error'); }
+                }, 400);
             }
         }
 
