@@ -35,7 +35,6 @@
         const USERS_URL = `${DB_BASE}/usuarios`;
         const API_KEY_TMDB = '9e64130cb366f23a3398f4f7c8e982c0';
         
-        // NÚMERO DE ADMINISTRAÇÃO MESTRE
         const ADMIN_WPP = '91988478336'; 
         
         let currentItem = {};
@@ -43,7 +42,7 @@
         let allPedidos = {}; 
         let currentUserLogado = null;
         let tempWppForOTP = null; 
-        let authFluxo = 'registro'; // Pode ser 'registro' ou 'recuperacao'
+        let authFluxo = 'registro'; 
     </script>
 
     <header id="main-header" class="container mx-auto flex flex-col md:flex-row justify-between items-center mb-12 gap-6 hidden">
@@ -65,7 +64,7 @@
             <p class="text-slate-400 text-sm mb-8">Acesso restrito a clientes verificados.</p>
             
             <div id="form-login" class="space-y-4">
-                <input type="tel" id="loginWpp" placeholder="Seu WhatsApp (Somente números)" class="w-full input-dark p-4 rounded-2xl" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                <input type="text" id="loginUser" placeholder="Nome de Usuário" class="w-full input-dark p-4 rounded-2xl">
                 <input type="password" id="loginPass" placeholder="Sua Senha" class="w-full input-dark p-4 rounded-2xl">
                 <button onclick="loginApp()" id="btnLogin" class="w-full py-4 bg-blue-600 rounded-2xl font-black shadow-lg hover:bg-blue-700 transition">ENTRAR</button>
                 <div class="flex justify-between items-center mt-4">
@@ -75,9 +74,10 @@
             </div>
 
             <div id="form-register" class="space-y-4 hidden">
+                <input type="text" id="regUser" placeholder="Nome de Usuário (Único)" class="w-full input-dark p-4 rounded-2xl">
                 <input type="text" id="regName" placeholder="Seu Nome Completo" class="w-full input-dark p-4 rounded-2xl">
                 <input type="tel" id="regWpp" placeholder="WhatsApp com DDD (Ex: 11999998888)" class="w-full input-dark p-4 rounded-2xl" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
-                <input type="password" id="regPass" placeholder="Crie uma Senha" class="w-full input-dark p-4 rounded-2xl">
+                <input type="password" id="regPass" placeholder="Senha (Mínimo 8 caracteres)" class="w-full input-dark p-4 rounded-2xl">
                 <button onclick="registerApp()" id="btnReg" class="w-full py-4 bg-green-600 rounded-2xl font-black shadow-lg hover:bg-green-700 transition">CRIAR CONTA</button>
                 <p class="text-sm text-slate-400 mt-4">Já tem conta? <button onclick="toggleAuthMode('login')" class="text-blue-500 font-bold hover:underline">Fazer Login</button></p>
             </div>
@@ -235,25 +235,32 @@
         }
 
         async function registerApp() {
+            const username = document.getElementById('regUser').value.trim().toLowerCase();
             const nome = document.getElementById('regName').value.trim();
             const wpp = document.getElementById('regWpp').value;
             const senha = document.getElementById('regPass').value;
 
-            if(!nome || wpp.length < 10 || senha.length < 4) {
-                return Swal.fire('Atenção', 'Preencha Nome, WhatsApp válido e crie uma senha!', 'warning');
+            // VALIDAÇÕES SOLICITADAS
+            if(!username || !nome || wpp.length < 10) {
+                return Swal.fire('Atenção', 'Preencha todos os campos corretamente!', 'warning');
+            }
+            if(senha.length < 8) {
+                return Swal.fire('Senha Fraca', 'A senha deve ter no mínimo 8 caracteres.', 'warning');
             }
 
             const btn = document.getElementById('btnReg');
             btn.disabled = true; btn.innerText = "VERIFICANDO...";
 
             try {
-                const res = await fetch(`${USERS_URL}/${wpp}.json`);
-                const userExists = await res.json();
+                // VERIFICA SE O USUÁRIO OU WHATSAPP JÁ EXISTEM
+                const res = await fetch(`${USERS_URL}.json`);
+                const allUsers = await res.json() || {};
+                
+                const userExists = Object.values(allUsers).find(u => u.username === username || u.wpp === wpp);
 
                 if(userExists && userExists.verificado) {
                     btn.disabled = false; btn.innerText = "CRIAR CONTA";
-                    Swal.fire('Opa!', 'Este número já está cadastrado. Por favor, faça login.', 'info');
-                    toggleAuthMode('login');
+                    Swal.fire('Opa!', 'Usuário ou WhatsApp já cadastrado!', 'info');
                     return;
                 }
 
@@ -261,30 +268,65 @@
 
                 await fetch(`${USERS_URL}/${wpp}.json`, {
                     method: 'PUT',
-                    body: JSON.stringify({ nome, wpp, senha, codigo: codigoOTP, verificado: false, codigoEnviado: false })
+                    body: JSON.stringify({ username, nome, wpp, senha, codigo: codigoOTP, verificado: false, codigoEnviado: false })
                 });
 
                 tempWppForOTP = wpp;
                 authFluxo = 'registro';
                 document.getElementById('page-auth').classList.add('hidden');
                 document.getElementById('page-otp').classList.remove('hidden');
-                document.getElementById('otp-msg').innerText = `Enviamos um código para o WhatsApp ${wpp}. Aguarde alguns segundos.`;
+                document.getElementById('otp-msg').innerText = `Enviamos um código para o WhatsApp ${wpp}.`;
                 
                 btn.disabled = false; btn.innerText = "CRIAR CONTA";
 
             } catch(e) {
                 btn.disabled = false; btn.innerText = "CRIAR CONTA";
-                Swal.fire('Erro', 'Falha na conexão com o banco de dados.', 'error');
+                Swal.fire('Erro', 'Falha na conexão.', 'error');
             }
         }
 
-        // --- SISTEMA DE RECUPERAÇÃO DE SENHA ---
+        async function loginApp() {
+            const userInp = document.getElementById('loginUser').value.trim().toLowerCase();
+            const senhaInp = document.getElementById('loginPass').value;
+
+            if(!userInp || !senhaInp) return Swal.fire('Atenção', 'Preencha Usuário e Senha.', 'warning');
+
+            const btn = document.getElementById('btnLogin');
+            btn.disabled = true; btn.innerText = "ENTRANDO...";
+
+            try {
+                const res = await fetch(`${USERS_URL}.json`);
+                const allUsers = await res.json() || {};
+                
+                // Busca usuário por username
+                const user = Object.values(allUsers).find(u => u.username === userInp);
+
+                if(user && user.senha === senhaInp) {
+                    if(user.verificado) {
+                        currentUserLogado = user;
+                        localStorage.setItem('vod_user', JSON.stringify(user));
+                        ativarModoLogado();
+                    } else {
+                        tempWppForOTP = user.wpp;
+                        authFluxo = 'registro';
+                        document.getElementById('page-auth').classList.add('hidden');
+                        document.getElementById('page-otp').classList.remove('hidden');
+                    }
+                } else {
+                    Swal.fire('Erro', 'Usuário ou senha incorretos!', 'error');
+                }
+            } catch(e) {
+                Swal.fire('Erro', 'Falha ao buscar dados.', 'error');
+            }
+            btn.disabled = false; btn.innerText = "ENTRAR";
+        }
+
         async function forgotPasswordApp() {
             const wpp = document.getElementById('forgotWpp').value;
             if(wpp.length < 10) return Swal.fire('Atenção', 'Digite um WhatsApp válido.', 'warning');
 
             const btn = document.getElementById('btnForgot');
-            btn.disabled = true; btn.innerText = "VERIFICANDO NÚMERO...";
+            btn.disabled = true; btn.innerText = "VERIFICANDO...";
 
             try {
                 const res = await fetch(`${USERS_URL}/${wpp}.json`);
@@ -297,21 +339,16 @@
 
                 const codigoOTP = Math.floor(100000 + Math.random() * 900000).toString();
 
-                // "Desverifica" o usuário para o robô lá na VPS perceber e enviar o código!
                 await fetch(`${USERS_URL}/${wpp}.json`, {
                     method: 'PATCH',
                     body: JSON.stringify({ codigo: codigoOTP, verificado: false, codigoEnviado: false })
                 });
 
                 tempWppForOTP = wpp;
-                authFluxo = 'recuperacao'; // Define que o fluxo é de nova senha
-                
+                authFluxo = 'recuperacao';
                 document.getElementById('page-auth').classList.add('hidden');
                 document.getElementById('page-otp').classList.remove('hidden');
-                document.getElementById('otp-msg').innerText = `Enviamos um código de segurança para o WhatsApp ${wpp}.`;
-                
                 btn.disabled = false; btn.innerText = "RECUPERAR SENHA";
-
             } catch(e) {
                 btn.disabled = false; btn.innerText = "RECUPERAR SENHA";
                 Swal.fire('Erro', 'Falha na conexão.', 'error');
@@ -321,139 +358,65 @@
         async function verifyOTP() {
             const digitado = document.getElementById('otpCode').value;
             if(digitado.length !== 6) return Swal.fire('Atenção', 'Digite os 6 números do código.', 'warning');
-
             const btn = document.getElementById('btnOtp');
-            btn.disabled = true; btn.innerText = "VALIDANDO...";
+            btn.disabled = true;
 
             try {
                 const res = await fetch(`${USERS_URL}/${tempWppForOTP}.json`);
                 const user = await res.json();
 
                 if(user && user.codigo === digitado) {
-                    
                     if(authFluxo === 'recuperacao') {
-                        // Se for recuperação, joga pra tela de criar nova senha
                         document.getElementById('page-otp').classList.add('hidden');
                         document.getElementById('page-new-password').classList.remove('hidden');
-                        document.getElementById('otpCode').value = ""; // limpa o input
                     } else {
-                        // Se for registro normal, conclui e faz login
                         await fetch(`${USERS_URL}/${tempWppForOTP}.json`, {
                             method: 'PATCH',
                             body: JSON.stringify({ verificado: true })
                         });
-
+                        user.verificado = true;
                         currentUserLogado = user;
                         localStorage.setItem('vod_user', JSON.stringify(user));
-                        
-                        Swal.fire({title: 'Conta Verificada!', icon: 'success', timer: 1500, showConfirmButton: false});
-                        document.getElementById('page-otp').classList.add('hidden');
                         ativarModoLogado();
                     }
                 } else {
-                    Swal.fire('Erro', 'Código incorreto. Tente novamente.', 'error');
+                    Swal.fire('Erro', 'Código incorreto.', 'error');
                 }
-            } catch(e) {
-                Swal.fire('Erro', 'Falha na conexão.', 'error');
-            }
+            } catch(e) { Swal.fire('Erro', 'Falha na conexão.', 'error'); }
             btn.disabled = false; btn.innerText = "CONFIRMAR CÓDIGO";
         }
 
         async function saveNewPassword() {
             const newPass = document.getElementById('newPassInput').value;
-            if(newPass.length < 4) return Swal.fire('Atenção', 'A senha precisa ter pelo menos 4 caracteres.', 'warning');
-
+            if(newPass.length < 8) return Swal.fire('Atenção', 'A nova senha precisa ter no mínimo 8 caracteres.', 'warning');
             const btn = document.getElementById('btnNewPass');
-            btn.disabled = true; btn.innerText = "SALVANDO...";
+            btn.disabled = true;
 
             try {
-                // Salva a nova senha e "re-verifica" a conta no banco
                 await fetch(`${USERS_URL}/${tempWppForOTP}.json`, {
                     method: 'PATCH',
                     body: JSON.stringify({ senha: newPass, verificado: true })
                 });
-
-                Swal.fire('Senha Alterada!', 'Sua senha foi atualizada com sucesso. Faça login agora.', 'success');
-                
-                // Limpa e volta pro login
+                Swal.fire('Sucesso!', 'Senha alterada. Faça login.', 'success');
                 document.getElementById('page-new-password').classList.add('hidden');
                 document.getElementById('page-auth').classList.remove('hidden');
                 toggleAuthMode('login');
-                document.getElementById('newPassInput').value = "";
-                tempWppForOTP = null;
-
-            } catch(e) {
-                Swal.fire('Erro', 'Falha ao salvar nova senha.', 'error');
-            }
+            } catch(e) { Swal.fire('Erro', 'Falha ao salvar.', 'error'); }
             btn.disabled = false; btn.innerText = "SALVAR NOVA SENHA";
         }
 
         async function resendOTP() {
             const btn = document.getElementById('btnResend');
-            
-            btn.disabled = true;
-            btn.innerText = "Aguarde 30s...";
-            btn.classList.add('text-slate-500');
-            btn.classList.remove('text-blue-500');
-
+            btn.disabled = true; btn.innerText = "Aguarde...";
             try {
                 const novoCodigo = Math.floor(100000 + Math.random() * 900000).toString();
-                
                 await fetch(`${USERS_URL}/${tempWppForOTP}.json`, {
                     method: 'PATCH',
                     body: JSON.stringify({ codigo: novoCodigo, codigoEnviado: false })
                 });
-
-                Swal.fire('Novo código solicitado!', 'Verifique o seu WhatsApp em alguns segundos.', 'success');
-                
-                setTimeout(() => {
-                    btn.disabled = false;
-                    btn.innerText = "Reenviar Código";
-                    btn.classList.remove('text-slate-500');
-                    btn.classList.add('text-blue-500');
-                }, 30000);
-
-            } catch(e) {
-                Swal.fire('Erro', 'Falha ao reenviar código.', 'error');
-                btn.disabled = false;
-                btn.innerText = "Reenviar Código";
-                btn.classList.remove('text-slate-500');
-                btn.classList.add('text-blue-500');
-            }
-        }
-
-        async function loginApp() {
-            const wpp = document.getElementById('loginWpp').value;
-            const senha = document.getElementById('loginPass').value;
-
-            if(!wpp || !senha) return Swal.fire('Atenção', 'Preencha o WhatsApp e a Senha.', 'warning');
-
-            const btn = document.getElementById('btnLogin');
-            btn.disabled = true; btn.innerText = "ENTRANDO...";
-
-            try {
-                const res = await fetch(`${USERS_URL}/${wpp}.json`);
-                const user = await res.json();
-
-                if(user && user.senha === senha) {
-                    if(user.verificado) {
-                        currentUserLogado = user;
-                        localStorage.setItem('vod_user', JSON.stringify(user));
-                        ativarModoLogado();
-                    } else {
-                        tempWppForOTP = wpp;
-                        authFluxo = 'registro';
-                        document.getElementById('page-auth').classList.add('hidden');
-                        document.getElementById('page-otp').classList.remove('hidden');
-                        document.getElementById('otp-msg').innerText = `Enviamos um código para o WhatsApp ${wpp} anteriormente.`;
-                    }
-                } else {
-                    Swal.fire('Erro', 'WhatsApp ou senha incorretos!', 'error');
-                }
-            } catch(e) {
-                Swal.fire('Erro', 'Falha ao buscar dados.', 'error');
-            }
-            btn.disabled = false; btn.innerText = "ENTRAR";
+                Swal.fire('Enviado!', 'Verifique seu WhatsApp.', 'success');
+                setTimeout(() => { btn.disabled = false; btn.innerText = "Reenviar Código"; }, 30000);
+            } catch(e) { btn.disabled = false; }
         }
 
         function cancelOTP() {
@@ -476,7 +439,7 @@
             document.getElementById('main-header').classList.remove('hidden');
             
             let label = currentUserLogado.wpp === ADMIN_WPP ? '<span class="bg-blue-600 text-[10px] text-white px-2 py-0.5 rounded ml-2 font-black">ADMIN</span>' : '';
-            document.getElementById('user-display').innerHTML = `<i class="fab fa-whatsapp text-green-500 mr-1"></i> Olá, <b>${currentUserLogado.nome}</b> ${label}`;
+            document.getElementById('user-display').innerHTML = `<i class="fas fa-user text-blue-500 mr-1"></i> @${currentUserLogado.username} | <b>${currentUserLogado.nome}</b> ${label}`;
             
             if(currentUserLogado.wpp === ADMIN_WPP) {
                 document.getElementById('btn-nav-admin').classList.remove('hidden');
@@ -489,27 +452,22 @@
 
         function showPage(page) {
             document.querySelectorAll('main').forEach(m => m.classList.add('hidden'));
-            
             if (page === 'admin') {
                 if (!currentUserLogado || currentUserLogado.wpp !== ADMIN_WPP) {
-                    Swal.fire('Acesso Negado', 'Área restrita à administração.', 'error');
+                    Swal.fire('Acesso Negado', 'Área restrita.', 'error');
                     return showPage('cliente');
                 }
                 loadAdmin();
             }
-
             if(!currentUserLogado && page !== 'auth') {
                 document.getElementById('page-auth').classList.remove('hidden');
                 return;
             }
-
             const alvo = document.getElementById(`page-${page}`);
             if(alvo) alvo.classList.remove('hidden');
-
             if (currentUserLogado && page !== 'auth') {
                 document.getElementById('main-header').classList.remove('hidden');
             }
-
             if(page === 'status') trackRequests(); 
         }
 
@@ -582,13 +540,11 @@
             const obs = document.getElementById('userObs').value.trim();
             const type = document.getElementById('requestType').value;
             const photoInput = document.getElementById('userPhoto');
-
             const btn = document.getElementById('btnEnviar');
             btn.disabled = true; btn.innerText = "PROCESSANDO...";
 
             let anexoData = null;
             if (photoInput.files && photoInput.files[0]) {
-                btn.innerText = "COMPRIMINDO FOTO...";
                 anexoData = await compressImage(photoInput.files[0]);
             }
 
@@ -607,12 +563,10 @@
                 }
             }
 
-            btn.innerText = "ENVIANDO PARA O SERVIDOR...";
-            const msgInicial = "Seu pedido já foi enviado e está na fila.";
             await fetch(DATABASE_URL, { 
                 method: 'POST', 
                 body: JSON.stringify({ 
-                    ...currentItem, user, wpp, type, obs, anexo: anexoData, status: 'Pendente', motivo: msgInicial, date: new Date().toLocaleString('pt-BR'), timestamp: agora 
+                    ...currentItem, user, wpp, type, obs, anexo: anexoData, status: 'Pendente', motivo: "Seu pedido já foi enviado e está na fila.", date: new Date().toLocaleString('pt-BR'), timestamp: agora 
                 }) 
             });
             
@@ -625,29 +579,22 @@
         async function trackRequests() {
             if(!currentUserLogado) return;
             const wpp = currentUserLogado.wpp; 
-
             const res = await fetch(DATABASE_URL);
             const data = await res.json();
             const container = document.getElementById('track-results');
             container.innerHTML = "";
             
-            if(!data) {
-                container.innerHTML = "<p class='text-slate-500'>Nenhum pedido encontrado.</p>";
-                return;
-            }
+            if(!data) { container.innerHTML = "<p class='text-slate-500'>Nenhum pedido encontrado.</p>"; return; }
 
             let encontrou = false;
             Object.values(data).reverse().forEach(p => {
                 if(p.wpp === wpp) {
                     encontrou = true;
                     let feedback = p.motivo ? `<button onclick="Swal.fire('Equipe Diz:', '${p.motivo.replace(/'/g, "\\'")}', 'info')" class="text-[10px] text-blue-400 font-bold underline mt-2 block uppercase">Ver Resposta</button>` : '';
-                    let anexoIcon = p.anexo ? `<span class="text-blue-400 text-[10px] mt-1 block"><i class="fas fa-image"></i> Anexo enviado</span>` : '';
-                    
-                    container.innerHTML += `<div class="glass p-5 rounded-3xl flex items-center gap-5 card-animate"><img src="${p.img}" class="w-14 h-20 rounded-xl object-cover"><div class="flex-1"><b class="text-white">${p.name}</b><br><span class="text-slate-500 text-[10px] uppercase font-bold">${p.type} ${p.mediaType ? '- ' + p.mediaType : ''}</span><br><span class="text-blue-400 text-[10px] mt-1 block"><i class="far fa-calendar-alt"></i> ${p.date || 'Data não registrada'}</span>${anexoIcon}</div><div class="text-right"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span>${feedback}</div></div>`;
+                    container.innerHTML += `<div class="glass p-5 rounded-3xl flex items-center gap-5 card-animate"><img src="${p.img}" class="w-14 h-20 rounded-xl object-cover"><div class="flex-1"><b class="text-white">${p.name}</b><br><span class="text-slate-500 text-[10px] uppercase font-bold">${p.type}</span><br><span class="text-blue-400 text-[10px] mt-1 block">${p.date || ''}</span></div><div class="text-right"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span>${feedback}</div></div>`;
                 }
             });
-
-            if(!encontrou) container.innerHTML = "<p class='text-slate-500'>Você ainda não fez nenhum pedido.</p>";
+            if(!encontrou) container.innerHTML = "<p class='text-slate-500'>Sem pedidos.</p>";
         }
 
         let currentFilter = 'Tudo';
@@ -660,7 +607,6 @@
             const table = document.getElementById('admin-table');
             const search = document.getElementById('adminSearch').value.toLowerCase();
             table.innerHTML = "";
-            
             let stats = { total: 0, analise: 0, concluido: 0, rejeitado: 0 };
             let countMap = {};
 
@@ -672,47 +618,28 @@
                 if(p.status === 'Em Análise') stats.analise++;
                 if(p.status === 'Concluído') stats.concluido++;
                 if(p.status === 'Rejeitado') stats.rejeitado++;
-
                 countMap[p.name] = (countMap[p.name] || 0) + 1;
 
-                if(currentFilter === 'Conserto' && p.type !== 'Conserto') return;
-                if(currentFilter === 'Pendente' && p.status !== 'Pendente') return;
-                if(currentFilter === 'Em Análise' && p.status !== 'Em Análise') return;
-                if(currentFilter === 'Rejeitado' && p.status !== 'Rejeitado') return;
-                if(currentFilter === 'Concluído' && p.status !== 'Concluído') return;
-
+                if(currentFilter !== 'Tudo' && currentFilter === 'Conserto' && p.type !== 'Conserto') return;
+                if(currentFilter !== 'Tudo' && currentFilter !== 'Conserto' && p.status !== currentFilter) return;
                 if(search && !p.name.toLowerCase().includes(search) && (!p.wpp || !p.wpp.includes(search))) return;
-
-                const isUrgente = p.type === 'Conserto' ? 'urgente' : '';
-                const obsBtn = p.obs ? `<button onclick="Swal.fire('Observação', '${p.obs.replace(/'/g, "\\'")}', 'info')" class="text-yellow-500 ml-2 hover:scale-110"><i class="fas fa-comment-dots"></i></button>` : '';
-                const anexoBtn = p.anexo ? `<button onclick="Swal.fire({imageUrl: '${p.anexo}', imageAlt: 'Anexo do cliente', background: '#111827'})" class="text-blue-400 ml-2 hover:scale-110" title="Ver Print"><i class="fas fa-image"></i></button>` : '';
-                const wppDirectBtn = p.wpp ? `<a href="https://wa.me/55${p.wpp}" target="_blank" class="text-green-500 ml-2 hover:scale-110" title="Chamar no WhatsApp"><i class="fab fa-whatsapp"></i></a>` : '';
 
                 table.innerHTML += `
                     <tr class="hover:bg-white/5 transition">
                         <td class="p-6 flex gap-4 items-center">
-                            <img src="${p.img}" class="w-12 h-16 rounded-xl object-cover ${isUrgente}">
-                            <div>
-                                <p class="font-bold text-sm text-white">${p.name}</p>
-                                <span class="text-[9px] ${p.type === 'Conserto' ? 'text-red-500' : 'text-blue-500'} font-black uppercase">
-                                    ${p.type}${p.mediaType ? ' - ' + p.mediaType : ''}
-                                </span>
-                                ${p.obs ? `<p class="text-[9px] text-slate-500 truncate w-32 italic">${p.obs}</p>` : ''}
-                            </div>
+                            <img src="${p.img}" class="w-12 h-16 rounded-xl object-cover ${p.type === 'Conserto' ? 'urgente' : ''}">
+                            <div><p class="font-bold text-sm text-white">${p.name}</p><span class="text-[9px] uppercase font-black">${p.type}</span></div>
                         </td>
-                        <td class="p-6 text-xs text-slate-400"><b>${p.user}</b><br><i class="fab fa-whatsapp text-green-500"></i> ${p.wpp || 'Sem número'}<br><span class="text-blue-400 text-[10px] mt-1 block"><i class="far fa-calendar-alt"></i> ${p.date || 'Data não registrada'}</span></td>
+                        <td class="p-6 text-xs text-slate-400"><b>${p.user}</b><br>${p.wpp}</td>
                         <td class="p-6"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span></td>
-                        <td class="p-6 text-center flex items-center justify-center">
-                            <select onchange="handleStatusChange('${id}', this.value)" class="text-[10px] p-2 bg-slate-800 rounded-xl outline-none mr-2">
+                        <td class="p-6 text-center">
+                            <select onchange="handleStatusChange('${id}', this.value)" class="text-[10px] p-2 bg-slate-800 rounded-xl mr-2">
                                 <option value="Pendente" ${p.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
                                 <option value="Em Análise" ${p.status === 'Em Análise' ? 'selected' : ''}>Análise</option>
                                 <option value="Concluído" ${p.status === 'Concluído' ? 'selected' : ''}>Concluído</option>
                                 <option value="Rejeitado" ${p.status === 'Rejeitado' ? 'selected' : ''}>Rejeitado</option>
                             </select>
-                            ${obsBtn}
-                            ${anexoBtn}
-                            ${wppDirectBtn}
-                            <button onclick="deletePedido('${id}')" class="text-slate-500 hover:text-red-500 transition ml-2"><i class="fas fa-trash-alt"></i></button>
+                            <button onclick="deletePedido('${id}')" class="text-slate-500 hover:text-red-500 ml-2"><i class="fas fa-trash-alt"></i></button>
                         </td>
                     </tr>`;
             });
@@ -730,24 +657,14 @@
         function renderRanking(map) {
             const sorted = Object.entries(map).sort((a,b) => b[1] - a[1]).slice(0, 5);
             document.getElementById('ranking-list').innerHTML = sorted.map(([name, count], i) => `
-                <div class="flex justify-between items-center bg-white/5 p-2 rounded-lg border border-white/5">
-                    <span>${i+1}. ${name}</span>
-                    <span class="bg-blue-600 px-2 rounded text-[10px] font-black">${count}x</span>
-                </div>`).join('') || 'Sem dados ainda...';
+                <div class="flex justify-between items-center bg-white/5 p-2 rounded-lg mb-2">
+                    <span>${i+1}. ${name}</span><span class="bg-blue-600 px-2 rounded text-[10px] font-black">${count}x</span>
+                </div>`).join('');
         }
 
         async function handleStatusChange(id, newStatus) {
-            const mensagens = {
-                'Pendente': 'Seu pedido já foi enviado e está na fila.',
-                'Em Análise': 'Seu pedido está em analise pela nosso equipe!',
-                'Rejeitado': 'Conteúdo de baixa relevância ou já existe no servidor.',
-                'Concluído': 'EBA! O conteúdo foi aprovado e logo será adicionado no servidor!'
-            };
-            
-            await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { 
-                method: 'PATCH', 
-                body: JSON.stringify({ status: newStatus, motivo: mensagens[newStatus] || 'Status atualizado.' }) 
-            });
+            const msgs = {'Pendente': 'Fila.', 'Em Análise': 'Em análise.', 'Rejeitado': 'Rejeitado.', 'Concluído': 'Aprovado!'};
+            await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'PATCH', body: JSON.stringify({ status: newStatus, motivo: msgs[newStatus] }) });
             loadAdmin();
         }
 
@@ -757,20 +674,17 @@
         }
 
         async function clearFinished() {
-            const r = await Swal.fire({ title: 'Limpar Concluídos?', text: 'Isso apagará todos do Firebase!', icon: 'warning', showCancelButton: true });
-            if (r.isConfirmed) {
+            if ((await Swal.fire({ title: 'Limpar?', icon: 'warning', showCancelButton: true })).isConfirmed) {
                 for(let id in allPedidos) if(allPedidos[id].status === 'Concluído') await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' });
                 loadAdmin();
             }
         }
 
         function exportToExcel() {
-            let csv = "Nome;WhatsApp;Conteudo;Tipo;Status;Data\n";
-            Object.values(allPedidos).forEach(p => { csv += `${p.user};${p.wpp};${p.name};${p.type};${p.status};${p.date}\n`; });
-            const blob = new Blob([csv], { type: 'text/csv' });
-            const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'pedidos_vod.csv'; a.click();
+            let csv = "Nome;WhatsApp;Conteudo;Status\n";
+            Object.values(allPedidos).forEach(p => { csv += `${p.user};${p.wpp};${p.name};${p.status}\n`; });
+            const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = 'pedidos.csv'; a.click();
         }
     </script>
 </body>
 </html>
-
