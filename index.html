@@ -20,12 +20,27 @@
         .input-dark { background: #1f2937; border: 1px solid #374151; color: white; transition: all 0.3s; }
         .input-dark:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2); outline: none; }
         
-        /* Animações */
-        .card-animate { animation: fadeInUp 0.4s ease forwards; }
-        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        /* --- SISTEMA DE ANIMAÇÕES --- */
+        .card-animate { animation: fadeInUp 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards; opacity: 0; }
+        @keyframes fadeInUp { 
+            from { opacity: 0; transform: translateY(15px) scale(0.98); } 
+            to { opacity: 1; transform: translateY(0) scale(1); } 
+        }
         
-        .exit-animate { animation: scaleOut 0.4s ease forwards; pointer-events: none; }
-        @keyframes scaleOut { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(0.9) translateY(-10px); } }
+        /* Saída Suave (Excluir) */
+        .exit-animate { animation: slideOut 0.4s ease forwards; pointer-events: none; }
+        @keyframes slideOut { 
+            0% { opacity: 1; transform: translateX(0); }
+            100% { opacity: 0; transform: translateX(30px); max-height: 0; padding-top: 0; padding-bottom: 0; margin: 0; } 
+        }
+
+        /* Modal Animado */
+        .modal-enter { animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+        @keyframes modalIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+
+        /* Hover Effects */
+        .hover-scale { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+        .hover-scale:hover { transform: scale(1.02); box-shadow: 0 10px 20px rgba(0,0,0,0.3); }
 
         .urgente { border: 2px solid #ef4444 !important; animation: pulse 2s infinite; }
         @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
@@ -47,19 +62,19 @@
         let currentUserLogado = null;
         let tempWppForOTP = null; 
         let authFluxo = 'registro'; 
-        let rankingResetado = false; // Controle para zerar apenas visualmente
+        let rankingResetado = false;
     </script>
 
-    <header id="main-header" class="container mx-auto flex flex-col md:flex-row justify-between items-center mb-12 gap-6 hidden">
+    <header id="main-header" class="container mx-auto flex flex-col md:flex-row justify-between items-center mb-12 gap-6 hidden card-animate">
         <div class="text-center md:text-left">
             <h1 class="text-4xl font-black tracking-tighter text-blue-500">PORTAL<span class="text-white">VOD</span></h1>
             <p id="user-display" class="text-slate-500 font-medium italic text-sm mt-1"></p>
         </div>
         <nav class="flex flex-wrap justify-center gap-2 glass p-1.5 rounded-2xl shadow-2xl">
-            <button onclick="showPage('cliente')" class="px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition">Início</button>
-            <button onclick="showPage('status')" class="px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition">Meus Pedidos</button>
-            <button id="btn-nav-admin" onclick="showPage('admin')" class="px-4 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-700 transition hidden"><i class="fas fa-shield-alt mr-1"></i> Admin</button>
-            <button onclick="logoutApp()" class="px-4 py-2.5 rounded-xl text-sm font-bold text-red-400 hover:bg-red-500/20 transition"><i class="fas fa-sign-out-alt"></i></button>
+            <button onclick="showPage('cliente')" class="px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition active:scale-90">Início</button>
+            <button onclick="showPage('status')" class="px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition active:scale-90">Meus Pedidos</button>
+            <button id="btn-nav-admin" onclick="showPage('admin')" class="px-4 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-700 transition hidden active:scale-90"><i class="fas fa-shield-alt mr-1"></i> Admin</button>
+            <button onclick="logoutApp()" class="px-4 py-2.5 rounded-xl text-sm font-bold text-red-400 hover:bg-red-500/20 transition active:scale-90"><i class="fas fa-sign-out-alt"></i></button>
         </nav>
     </header>
 
@@ -70,23 +85,23 @@
             <div id="form-login" class="space-y-4">
                 <input type="text" id="loginUser" placeholder="Usuário ou WhatsApp" class="w-full input-dark p-4 rounded-2xl">
                 <input type="password" id="loginPass" placeholder="Sua Senha" class="w-full input-dark p-4 rounded-2xl">
-                <button onclick="loginApp()" id="btnLogin" class="w-full py-4 bg-blue-600 rounded-2xl font-black shadow-lg hover:bg-blue-700 transition">ENTRAR</button>
+                <button onclick="loginApp()" id="btnLogin" class="w-full py-4 bg-blue-600 rounded-2xl font-black shadow-lg hover:bg-blue-700 transition active:scale-95">ENTRAR</button>
                 <div class="flex justify-between items-center mt-4">
                     <button onclick="toggleAuthMode('forgot')" class="text-sm text-slate-400 hover:text-white transition">Esqueci a senha</button>
                     <button onclick="toggleAuthMode('register')" class="text-sm text-blue-500 font-bold hover:underline">Criar conta</button>
                 </div>
             </div>
-            <div id="form-register" class="space-y-4 hidden">
+            <div id="form-register" class="space-y-4 hidden card-animate">
                 <input type="text" id="regUser" placeholder="Nome de Usuário (Único)" class="w-full input-dark p-4 rounded-2xl">
                 <input type="text" id="regName" placeholder="Seu Nome Completo" class="w-full input-dark p-4 rounded-2xl">
                 <input type="tel" id="regWpp" placeholder="WhatsApp com DDD" class="w-full input-dark p-4 rounded-2xl" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
                 <input type="password" id="regPass" placeholder="Senha (Mínimo 8 caracteres)" class="w-full input-dark p-4 rounded-2xl">
-                <button onclick="registerApp()" id="btnReg" class="w-full py-4 bg-green-600 rounded-2xl font-black shadow-lg hover:bg-green-700 transition">CRIAR CONTA</button>
+                <button onclick="registerApp()" id="btnReg" class="w-full py-4 bg-green-600 rounded-2xl font-black shadow-lg hover:bg-green-700 transition active:scale-95">CRIAR CONTA</button>
                 <p class="text-sm text-slate-400 mt-4">Já tem conta? <button onclick="toggleAuthMode('login')" class="text-blue-500 font-bold hover:underline">Fazer Login</button></p>
             </div>
-            <div id="form-forgot" class="space-y-4 hidden">
+            <div id="form-forgot" class="space-y-4 hidden card-animate">
                 <input type="tel" id="forgotWpp" placeholder="WhatsApp com DDD" class="w-full input-dark p-4 rounded-2xl" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
-                <button onclick="forgotPasswordApp()" id="btnForgot" class="w-full py-4 bg-yellow-600 rounded-2xl font-black shadow-lg hover:bg-yellow-700 transition">RECUPERAR SENHA</button>
+                <button onclick="forgotPasswordApp()" id="btnForgot" class="w-full py-4 bg-yellow-600 rounded-2xl font-black shadow-lg hover:bg-yellow-700 transition active:scale-95">RECUPERAR SENHA</button>
                 <p class="text-sm text-slate-400 mt-4"><button onclick="toggleAuthMode('login')" class="text-blue-500 font-bold hover:underline">Voltar para o Login</button></p>
             </div>
         </div>
@@ -98,7 +113,7 @@
             <h2 class="text-2xl font-black text-white mb-2">Verifique seu WhatsApp</h2>
             <p id="otp-msg" class="text-slate-400 text-sm mb-8"></p>
             <input type="text" id="otpCode" placeholder="000000" maxlength="6" class="w-full input-dark p-4 rounded-2xl text-center text-2xl font-black tracking-widest">
-            <button onclick="verifyOTP()" id="btnOtp" class="w-full py-4 bg-green-600 rounded-2xl font-black shadow-lg hover:bg-green-700 transition mt-4">CONFIRMAR CÓDIGO</button>
+            <button onclick="verifyOTP()" id="btnOtp" class="w-full py-4 bg-green-600 rounded-2xl font-black shadow-lg hover:bg-green-700 transition mt-4 active:scale-95">CONFIRMAR CÓDIGO</button>
         </div>
     </main>
 
@@ -107,11 +122,11 @@
             <i class="fas fa-lock text-5xl text-yellow-500 mb-4"></i>
             <h2 class="text-2xl font-black text-white mb-2">Nova Senha</h2>
             <input type="password" id="newPassInput" placeholder="Sua nova senha" class="w-full input-dark p-4 rounded-2xl">
-            <button onclick="saveNewPassword()" id="btnNewPass" class="w-full py-4 bg-yellow-600 rounded-2xl font-black shadow-lg hover:bg-yellow-700 transition mt-4">SALVAR</button>
+            <button onclick="saveNewPassword()" id="btnNewPass" class="w-full py-4 bg-yellow-600 rounded-2xl font-black shadow-lg hover:bg-yellow-700 transition mt-4 active:scale-95">SALVAR</button>
         </div>
     </main>
 
-    <main id="page-cliente" class="container mx-auto max-w-6xl hidden">
+    <main id="page-cliente" class="container mx-auto max-w-6xl hidden card-animate">
         <div class="glass p-8 rounded-[32px] mb-8 shadow-2xl border-t-4 border-blue-500">
             <div class="flex gap-6 mb-8 border-b border-slate-800 pb-4">
                 <button onclick="setSearchMode('movie')" id="btn-movie" class="text-blue-500 font-bold border-b-2 border-blue-500 pb-2">Filmes & Séries</button>
@@ -124,24 +139,24 @@
         <div id="grid-content" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8"></div>
     </main>
 
-    <main id="page-status" class="container mx-auto max-w-2xl hidden">
+    <main id="page-status" class="container mx-auto max-w-2xl hidden card-animate">
         <div class="glass p-10 rounded-[32px]">
             <h2 class="text-3xl font-black mb-8">Meus Pedidos</h2>
             <div id="track-results" class="space-y-5"></div>
         </div>
     </main>
 
-    <main id="page-admin" class="container mx-auto max-w-7xl hidden">
+    <main id="page-admin" class="container mx-auto max-w-7xl hidden card-animate">
         <div class="flex justify-between items-center mb-8">
             <h2 class="text-3xl font-black text-blue-500"><i class="fas fa-shield-alt mr-2 text-white"></i> PAINEL ADMIN</h2>
-            <button onclick="verTodosUsuarios()" class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-xl text-xs font-bold uppercase"><i class="fas fa-users mr-2"></i> Ver Clientes</button>
+            <button onclick="verTodosUsuarios()" class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-xl text-xs font-bold uppercase transition active:scale-95"><i class="fas fa-users mr-2"></i> Ver Clientes</button>
         </div>
 
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div class="glass p-6 rounded-3xl border-l-4 border-blue-500"><p class="text-slate-400 text-xs font-bold uppercase">Total</p><h3 id="stat-total" class="text-2xl font-black">0</h3></div>
-            <div class="glass p-6 rounded-3xl border-l-4 border-yellow-500"><p class="text-slate-400 text-xs font-bold uppercase">Análise</p><h3 id="stat-analise" class="text-2xl font-black text-yellow-500">0</h3></div>
-            <div class="glass p-6 rounded-3xl border-l-4 border-green-500"><p class="text-slate-400 text-xs font-bold uppercase">Concluídos</p><h3 id="stat-concluido" class="text-2xl font-black text-green-500">0</h3></div>
-            <div class="glass p-6 rounded-3xl border-l-4 border-red-500"><p class="text-slate-400 text-xs font-bold uppercase">Rejeitados</p><h3 id="stat-rejeitado" class="text-2xl font-black text-red-500">0</h3></div>
+            <div class="glass p-6 rounded-3xl border-l-4 border-blue-500 hover-scale"><p class="text-slate-400 text-xs font-bold uppercase">Total</p><h3 id="stat-total" class="text-2xl font-black">0</h3></div>
+            <div class="glass p-6 rounded-3xl border-l-4 border-yellow-500 hover-scale"><p class="text-slate-400 text-xs font-bold uppercase">Análise</p><h3 id="stat-analise" class="text-2xl font-black text-yellow-500">0</h3></div>
+            <div class="glass p-6 rounded-3xl border-l-4 border-green-500 hover-scale"><p class="text-slate-400 text-xs font-bold uppercase">Concluídos</p><h3 id="stat-concluido" class="text-2xl font-black text-green-500">0</h3></div>
+            <div class="glass p-6 rounded-3xl border-l-4 border-red-500 hover-scale"><p class="text-slate-400 text-xs font-bold uppercase">Rejeitados</p><h3 id="stat-rejeitado" class="text-2xl font-black text-red-500">0</h3></div>
         </div>
 
         <div class="grid lg:grid-cols-3 gap-8 mb-8">
@@ -155,10 +170,10 @@
             <div class="glass p-6 rounded-[32px] lg:col-span-2">
                 <div class="flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
                     <div class="flex flex-wrap gap-2">
-                        <button onclick="filterAdmin('Tudo')" class="bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold text-white">Tudo</button>
-                        <button onclick="filterAdmin('Conserto')" class="bg-red-500/20 text-red-500 px-4 py-2 rounded-xl text-xs font-bold border border-red-500/30">Consertos</button>
-                        <button onclick="filterAdmin('Pendente')" class="bg-yellow-500/20 text-yellow-500 px-4 py-2 rounded-xl text-xs font-bold border border-yellow-500/30">Pendentes</button>
-                        <button onclick="filterAdmin('Concluído')" class="bg-green-500/20 text-green-500 px-4 py-2 rounded-xl text-xs font-bold border border-green-500/30">Concluídos</button>
+                        <button onclick="filterAdmin('Tudo')" class="bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold text-white transition active:scale-95">Tudo</button>
+                        <button onclick="filterAdmin('Conserto')" class="bg-red-500/20 text-red-500 px-4 py-2 rounded-xl text-xs font-bold border border-red-500/30 transition active:scale-95">Consertos</button>
+                        <button onclick="filterAdmin('Pendente')" class="bg-yellow-500/20 text-yellow-500 px-4 py-2 rounded-xl text-xs font-bold border border-yellow-500/30 transition active:scale-95">Pendentes</button>
+                        <button onclick="filterAdmin('Concluído')" class="bg-green-500/20 text-green-500 px-4 py-2 rounded-xl text-xs font-bold border border-green-500/30 transition active:scale-95">Concluídos</button>
                     </div>
                     <input type="text" id="adminSearch" onkeyup="loadAdmin()" placeholder="Buscar..." class="input-dark p-3 rounded-xl text-xs w-full md:w-48">
                 </div>
@@ -168,7 +183,7 @@
             </div>
         </div>
 
-        <div class="glass rounded-[32px] overflow-hidden">
+        <div class="glass rounded-[32px] overflow-hidden overflow-x-auto">
             <table class="w-full text-left">
                 <thead class="bg-slate-900/60 text-slate-500 uppercase text-[10px] font-black">
                     <tr>
@@ -184,8 +199,8 @@
     </main>
 
     <div id="modal" class="fixed inset-0 bg-black/90 hidden flex items-center justify-center p-4 z-50 backdrop-blur-xl">
-        <div class="glass rounded-[40px] max-w-md w-full p-10 h-max max-h-screen overflow-y-auto text-center">
-            <div id="modal-poster" class="w-32 h-44 bg-slate-800 rounded-3xl mb-6 mx-auto overflow-hidden border border-slate-700"></div>
+        <div id="modal-content" class="glass rounded-[40px] max-w-md w-full p-10 h-max max-h-screen overflow-y-auto text-center modal-enter">
+            <div id="modal-poster" class="w-32 h-44 bg-slate-800 rounded-3xl mb-6 mx-auto overflow-hidden border border-slate-700 shadow-2xl"></div>
             <h3 class="text-2xl font-black mb-8" id="modalTitle"></h3>
             <div class="space-y-4">
                 <select id="requestType" class="w-full input-dark p-4 rounded-2xl">
@@ -194,14 +209,13 @@
                     <option value="Atualização">🔄 Solicitar Atualização</option>
                 </select>
                 <textarea id="userObs" placeholder="Observações..." class="w-full input-dark p-4 rounded-2xl h-24"></textarea>
-                <button id="btnEnviar" onclick="saveToFirebase()" class="w-full py-5 bg-blue-600 rounded-[24px] font-black shadow-lg">ENVIAR PEDIDO</button>
-                <button onclick="closeModal()" class="w-full text-slate-500 font-bold mt-4">CANCELAR</button>
+                <button id="btnEnviar" onclick="saveToFirebase()" class="w-full py-5 bg-blue-600 rounded-[24px] font-black shadow-lg transition active:scale-95">ENVIAR PEDIDO</button>
+                <button onclick="closeModal()" class="w-full text-slate-500 font-bold mt-4 hover:text-white transition">CANCELAR</button>
             </div>
         </div>
     </div>
 
     <script>
-        // --- FUNÇÕES DE CARREGAMENTO E LOGIN ---
         window.onload = () => {
             const savedUser = localStorage.getItem('vod_user');
             if(savedUser) {
@@ -214,9 +228,8 @@
             document.getElementById('form-login').classList.add('hidden');
             document.getElementById('form-register').classList.add('hidden');
             document.getElementById('form-forgot').classList.add('hidden');
-            if(mode === 'login') document.getElementById('form-login').classList.remove('hidden');
-            if(mode === 'register') document.getElementById('form-register').classList.remove('hidden');
-            if(mode === 'forgot') document.getElementById('form-forgot').classList.remove('hidden');
+            const target = document.getElementById(`form-${mode}`);
+            target.classList.remove('hidden');
         }
 
         async function registerApp() {
@@ -328,12 +341,16 @@
         function showPage(page) {
             document.querySelectorAll('main').forEach(m => m.classList.add('hidden'));
             const alvo = document.getElementById(`page-${page}`);
-            if(alvo) alvo.classList.remove('hidden');
+            if(alvo) {
+                alvo.classList.remove('hidden');
+                alvo.style.animation = 'none';
+                void alvo.offsetWidth; 
+                alvo.style.animation = 'fadeInUp 0.5s forwards';
+            }
             if(page === 'admin') loadAdmin();
             if(page === 'status') trackRequests();
         }
 
-        // --- TMDB E PESQUISA ---
         function setSearchMode(mode) { searchMode = mode; }
         async function searchTMDB() {
             const q = document.getElementById('searchInput').value;
@@ -345,13 +362,14 @@
             })));
         }
         function handleSearch() { if (searchMode === 'movie') searchTMDB(); }
+        
         function renderGrid(items) {
             const grid = document.getElementById('grid-content');
-            grid.innerHTML = items.map(item => `
-                <div class="glass p-4 rounded-[32px] card-animate">
-                    <img src="${item.img}" class="w-full h-64 object-cover rounded-2xl mb-4">
+            grid.innerHTML = items.map((item, index) => `
+                <div class="glass p-4 rounded-[32px] card-animate hover-scale" style="animation-delay: ${index * 0.05}s">
+                    <img src="${item.img}" class="w-full h-64 object-cover rounded-2xl mb-4 shadow-lg">
                     <h4 class="font-bold text-sm truncate text-slate-200 mb-3">${item.name}</h4>
-                    <button onclick="openModal('${item.name.replace(/'/g, "")}', '${item.img}', '${item.mediaType}')" class="w-full bg-slate-800 py-2 rounded-xl text-[10px] font-black uppercase">Solicitar</button>
+                    <button onclick="openModal('${item.name.replace(/'/g, "")}', '${item.img}', '${item.mediaType}')" class="w-full bg-slate-800 py-2 rounded-xl text-[10px] font-black uppercase transition active:scale-95">Solicitar</button>
                 </div>`).join('');
         }
 
@@ -384,14 +402,13 @@
             const container = document.getElementById('track-results');
             container.innerHTML = "";
             if(!data) return;
-            Object.values(data).reverse().forEach(p => {
+            Object.values(data).reverse().forEach((p, i) => {
                 if(p.wpp === currentUserLogado.wpp) {
-                    container.innerHTML += `<div class="glass p-5 rounded-3xl flex items-center gap-5"><img src="${p.img}" class="w-14 h-20 rounded-xl object-cover"><div><b class="text-white">${p.name}</b><br><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span><br><small class="text-slate-500">${p.date}</small></div></div>`;
+                    container.innerHTML += `<div class="glass p-5 rounded-3xl flex items-center gap-5 card-animate hover-scale" style="animation-delay: ${i*0.1}s"><img src="${p.img}" class="w-14 h-20 rounded-xl object-cover"><div><b class="text-white">${p.name}</b><br><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span><br><small class="text-slate-500">${p.date}</small></div></div>`;
                 }
             });
         }
 
-        // --- ADMIN FUNÇÕES ---
         let currentFilter = 'Tudo';
         function filterAdmin(tipo) { currentFilter = tipo; loadAdmin(); }
 
@@ -406,7 +423,7 @@
             let countMap = {};
             if(!data) return updateStats(stats);
 
-            Object.keys(data).reverse().forEach(id => {
+            Object.keys(data).reverse().forEach((id, i) => {
                 const p = data[id];
                 stats.total++;
                 if(p.status === 'Em Análise') stats.analise++;
@@ -418,7 +435,7 @@
                 if(search && !p.name.toLowerCase().includes(search)) return;
 
                 table.innerHTML += `
-                    <tr id="row-${id}" class="hover:bg-white/5 transition">
+                    <tr id="row-${id}" class="hover:bg-white/5 transition card-animate" style="animation-delay: ${i*0.02}s">
                         <td class="p-6 flex gap-4 items-center">
                             <img src="${p.img}" class="w-12 h-16 rounded-xl object-cover ${p.type === 'Conserto' ? 'urgente' : ''}">
                             <div><p class="font-bold text-sm text-white">${p.name}</p><span class="text-[9px] uppercase font-black">${p.type}</span></div>
@@ -427,20 +444,20 @@
                             <b>${p.user}</b><br>
                             <div class="flex items-center gap-2">
                                 ${p.wpp}
-                                <a href="https://wa.me/${p.wpp}" target="_blank" class="bg-green-600 hover:bg-green-700 text-white w-5 h-5 flex items-center justify-center rounded-full transition">
+                                <a href="https://wa.me/${p.wpp}" target="_blank" class="bg-green-600 hover:bg-green-700 text-white w-5 h-5 flex items-center justify-center rounded-full transition active:scale-90">
                                     <i class="fab fa-whatsapp text-[10px]"></i>
                                 </a>
                             </div>
                         </td>
                         <td class="p-6 text-[10px] text-blue-400 font-bold">${p.date || '---'}<br><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span></td>
                         <td class="p-6 text-center">
-                            <select onchange="handleStatusChange('${id}', this.value)" class="text-[10px] p-2 bg-slate-800 rounded-xl mb-2 w-full">
+                            <select onchange="handleStatusChange('${id}', this.value)" class="text-[10px] p-2 bg-slate-800 rounded-xl mb-2 w-full transition hover:bg-slate-700">
                                 <option value="Pendente" ${p.status === 'Pendente' ? 'selected' : ''}>Pendente</option>
                                 <option value="Em Análise" ${p.status === 'Em Análise' ? 'selected' : ''}>Análise</option>
                                 <option value="Concluído" ${p.status === 'Concluído' ? 'selected' : ''}>Concluído</option>
                                 <option value="Rejeitado" ${p.status === 'Rejeitado' ? 'selected' : ''}>Rejeitado</option>
                             </select>
-                            <button onclick="deletePedido('${id}')" class="text-slate-500 hover:text-red-500 ml-2"><i class="fas fa-trash-alt"></i></button>
+                            <button onclick="deletePedido('${id}')" class="text-slate-500 hover:text-red-500 ml-2 transition active:scale-90"><i class="fas fa-trash-alt"></i></button>
                         </td>
                     </tr>`;
             });
@@ -458,12 +475,12 @@
         function renderRanking(map) {
             const rankingList = document.getElementById('ranking-list');
             if(rankingResetado) {
-                rankingList.innerHTML = "<p class='text-slate-500 italic text-xs py-4'>Ranking resetado nesta sessão.</p>";
+                rankingList.innerHTML = "<p class='text-slate-500 italic text-xs py-4'>Ranking resetado.</p>";
                 return;
             }
             const sorted = Object.entries(map).sort((a,b) => b[1] - a[1]).slice(0, 5);
             rankingList.innerHTML = sorted.map(([name, count], i) => `
-                <div class="flex justify-between items-center bg-white/5 p-2 rounded-lg mb-2 card-animate">
+                <div class="flex justify-between items-center bg-white/5 p-2 rounded-lg mb-2 card-animate hover-scale" style="animation-delay: ${i*0.1}s">
                     <span class="truncate pr-2">${i+1}. ${name}</span><span class="bg-blue-600 px-2 rounded text-[10px] font-black">${count}x</span>
                 </div>`).join('');
         }
@@ -484,20 +501,19 @@
             }
         }
 
-        // Função para zerar apenas visualmente o ranking
         async function clearTopPedidos() {
             Swal.fire({
                 title: 'Zerar Ranking Visual?',
-                text: "Isso limpará apenas a lista de 'Top Pedidos'. Os registros na tabela continuarão salvos.",
+                text: "Isso limpará apenas a lista de 'Top Pedidos'.",
                 icon: 'question',
                 showCancelButton: true,
-                confirmButtonText: 'Sim, zerar visual',
+                confirmButtonText: 'Sim, zerar',
                 cancelButtonText: 'Cancelar'
             }).then((result) => {
                 if (result.isConfirmed) {
                     rankingResetado = true;
                     renderRanking({});
-                    Swal.fire('Limpo!', 'O ranking foi resetado visualmente.', 'success');
+                    Swal.fire('Limpo!', 'O ranking foi resetado.', 'success');
                 }
             });
         }
@@ -510,12 +526,12 @@
                 if(users) {
                     Object.values(users).forEach(u => {
                         lista += `
-                        <div id="user-${u.wpp}" class="flex justify-between items-center border-b border-slate-700 py-3 transition-all">
+                        <div id="user-${u.wpp}" class="flex justify-between items-center border-b border-slate-700 py-3 transition card-animate">
                             <div class="text-left">
                                 <p class="text-sm font-bold">${u.nome}</p>
                                 <p class="text-xs text-blue-400">@${u.username} | ${u.wpp}</p>
                             </div>
-                            <button onclick="deleteUsuario('${u.wpp}')" class="text-red-500 hover:text-red-700 p-2">
+                            <button onclick="deleteUsuario('${u.wpp}')" class="text-red-500 hover:text-red-700 p-2 transition active:scale-90">
                                 <i class="fas fa-user-minus"></i>
                             </button>
                         </div>`;
@@ -523,14 +539,14 @@
                 }
                 Swal.fire({
                     title: 'Clientes Cadastrados',
-                    html: `<div class="max-h-60 overflow-y-auto px-2">${lista || "Nenhum cliente cadastrado."}</div>`,
+                    html: `<div class="max-h-60 overflow-y-auto px-2">${lista || "Nenhum cliente."}</div>`,
                     confirmButtonText: 'Fechar'
                 });
-            } catch(e) { Swal.fire('Erro', 'Não foi possível carregar usuários.', 'error'); }
+            } catch(e) { Swal.fire('Erro', 'Não carregou usuários.', 'error'); }
         }
 
         async function deleteUsuario(wpp) {
-            if (confirm(`Tem certeza que deseja excluir o cliente com WhatsApp ${wpp}?`)) {
+            if (confirm(`Excluir cliente ${wpp}?`)) {
                 const userRow = document.getElementById(`user-${wpp}`);
                 if(userRow) userRow.classList.add('exit-animate');
                 
