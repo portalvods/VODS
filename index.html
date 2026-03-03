@@ -34,7 +34,9 @@
         const DATABASE_URL = `${DB_BASE}/pedidos.json`;
         const USERS_URL = `${DB_BASE}/usuarios`;
         const API_KEY_TMDB = '9e64130cb366f23a3398f4f7c8e982c0';
-        const ADMIN_PASSWORD = 'vods123@';
+        
+        // NÚMERO DE ADMINISTRAÇÃO MESTRE
+        const ADMIN_WPP = '91988478336'; 
         
         let currentItem = {};
         let searchMode = 'movie';
@@ -51,7 +53,7 @@
         <nav class="flex flex-wrap justify-center gap-2 glass p-1.5 rounded-2xl shadow-2xl">
             <button onclick="showPage('cliente')" class="px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition">Início</button>
             <button onclick="showPage('status')" class="px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition">Meus Pedidos</button>
-            <button onclick="checkAdminPassword()" class="px-4 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-700 transition">Admin</button>
+            <button id="btn-nav-admin" onclick="showPage('admin')" class="px-4 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-700 transition hidden"><i class="fas fa-shield-alt mr-1"></i> Admin</button>
             <button onclick="logoutApp()" class="px-4 py-2.5 rounded-xl text-sm font-bold text-red-400 hover:bg-red-500/20 transition"><i class="fas fa-sign-out-alt"></i></button>
         </nav>
     </header>
@@ -121,6 +123,10 @@
     </main>
 
     <main id="page-admin" class="container mx-auto max-w-7xl hidden">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-3xl font-black text-blue-500"><i class="fas fa-shield-alt mr-2 text-white"></i> PAINEL ADMIN</h2>
+        </div>
+
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
             <div class="glass p-6 rounded-3xl border-l-4 border-blue-500"><p class="text-slate-400 text-xs font-bold uppercase">Total</p><h3 id="stat-total" class="text-2xl font-black">0</h3></div>
             <div class="glass p-6 rounded-3xl border-l-4 border-yellow-500"><p class="text-slate-400 text-xs font-bold uppercase">Análise</p><h3 id="stat-analise" class="text-2xl font-black text-yellow-500">0</h3></div>
@@ -242,21 +248,17 @@
             }
         }
 
-        // --- NOVA FUNÇÃO: REENVIAR CÓDIGO ---
         async function resendOTP() {
             const btn = document.getElementById('btnResend');
             
-            // Trava o botão
             btn.disabled = true;
             btn.innerText = "Aguarde 30s...";
             btn.classList.add('text-slate-500');
             btn.classList.remove('text-blue-500');
 
             try {
-                // Gera um código novinho em folha
                 const novoCodigo = Math.floor(100000 + Math.random() * 900000).toString();
                 
-                // Manda pro Firebase, avisando pro robô disparar de novo
                 await fetch(`${USERS_URL}/${tempWppForOTP}.json`, {
                     method: 'PATCH',
                     body: JSON.stringify({ codigo: novoCodigo, codigoEnviado: false })
@@ -264,7 +266,6 @@
 
                 Swal.fire('Novo código solicitado!', 'Verifique o seu WhatsApp em alguns segundos.', 'success');
                 
-                // Destrava o botão depois de 30 segundos
                 setTimeout(() => {
                     btn.disabled = false;
                     btn.innerText = "Reenviar Código";
@@ -363,20 +364,45 @@
             document.getElementById('page-auth').classList.add('hidden');
             document.getElementById('page-otp').classList.add('hidden');
             document.getElementById('main-header').classList.remove('hidden');
-            document.getElementById('user-display').innerHTML = `<i class="fab fa-whatsapp text-green-500 mr-1"></i> Olá, <b>${currentUserLogado.nome}</b>`;
-            showPage('cliente');
+            
+            let label = currentUserLogado.wpp === ADMIN_WPP ? '<span class="bg-blue-600 text-[10px] text-white px-2 py-0.5 rounded ml-2 font-black">ADMIN</span>' : '';
+            document.getElementById('user-display').innerHTML = `<i class="fab fa-whatsapp text-green-500 mr-1"></i> Olá, <b>${currentUserLogado.nome}</b> ${label}`;
+            
+            // MÁGICA DE ADMIN AQUI:
+            if(currentUserLogado.wpp === ADMIN_WPP) {
+                document.getElementById('btn-nav-admin').classList.remove('hidden');
+                showPage('admin'); // Joga o chefão direto pro painel!
+            } else {
+                document.getElementById('btn-nav-admin').classList.add('hidden');
+                showPage('cliente');
+            }
         }
 
         function showPage(page) {
             document.querySelectorAll('main').forEach(m => m.classList.add('hidden'));
+            
+            // Segurança nível máximo para o Painel Admin
+            if (page === 'admin') {
+                if (!currentUserLogado || currentUserLogado.wpp !== ADMIN_WPP) {
+                    Swal.fire('Acesso Negado', 'Área restrita à administração.', 'error');
+                    return showPage('cliente');
+                }
+                loadAdmin();
+            }
+
+            // Segurança para telas comuns
             if(!currentUserLogado && page !== 'auth') {
                 document.getElementById('page-auth').classList.remove('hidden');
                 return;
             }
+
             const alvo = document.getElementById(`page-${page}`);
             if(alvo) alvo.classList.remove('hidden');
-            
-            if(page === 'admin') loadAdmin();
+
+            if (currentUserLogado && page !== 'auth') {
+                document.getElementById('main-header').classList.remove('hidden');
+            }
+
             if(page === 'status') trackRequests(); 
         }
 
@@ -463,7 +489,8 @@
             const data = await resData.json();
             const agora = new Date().getTime();
 
-            if (data) {
+            // Administrador não tem limite de pedidos por dia
+            if (data && wpp !== ADMIN_WPP) {
                 const pedidosWpp = Object.values(data).filter(p => p.wpp === wpp);
                 if (pedidosWpp.length > 0) {
                     const ultimo = pedidosWpp.sort((a, b) => b.timestamp - a.timestamp)[0];
@@ -636,10 +663,6 @@
             Object.values(allPedidos).forEach(p => { csv += `${p.user};${p.wpp};${p.name};${p.type};${p.status};${p.date}\n`; });
             const blob = new Blob([csv], { type: 'text/csv' });
             const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'pedidos_vod.csv'; a.click();
-        }
-
-        function checkAdminPassword() {
-            Swal.fire({ title: 'Acesso Restrito', input: 'password', showCancelButton: true }).then((r) => { if(r.value === ADMIN_PASSWORD) showPage('admin'); });
         }
     </script>
 </body>
