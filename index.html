@@ -129,7 +129,7 @@
     <main id="page-admin" class="container mx-auto max-w-7xl hidden">
         <div class="flex justify-between items-center mb-8">
             <h2 class="text-3xl font-black text-blue-500"><i class="fas fa-shield-alt mr-2 text-white"></i> PAINEL ADMIN</h2>
-            <button onclick="verTodosUsuarios()" class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-xl text-xs font-bold uppercase"><i class="fas fa-users mr-2"></i> Ver Todos os Pedintes</button>
+            <button onclick="verTodosUsuarios()" class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-xl text-xs font-bold uppercase"><i class="fas fa-users mr-2"></i> Ver Todos os clientes cadastrados</button>
         </div>
 
         <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -151,11 +151,11 @@
                 <div class="flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
                     <div class="flex flex-wrap gap-2">
                         <button onclick="filterAdmin('Tudo')" class="bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold text-white">Tudo</button>
-                        <button onclick="clearSpecific('Conserto')" class="bg-red-500/20 text-red-500 px-4 py-2 rounded-xl text-xs font-bold border border-red-500/30">Consertos 🗑️</button>
-                        <button onclick="clearSpecific('Pendente')" class="bg-yellow-500/20 text-yellow-500 px-4 py-2 rounded-xl text-xs font-bold border border-yellow-500/30">Pendentes 🗑️</button>
-                        <button onclick="clearSpecific('Em Análise')" class="bg-blue-500/20 text-blue-500 px-4 py-2 rounded-xl text-xs font-bold border border-blue-500/30">Análise 🗑️</button>
-                        <button onclick="clearSpecific('Rejeitado')" class="bg-rose-500/20 text-rose-500 px-4 py-2 rounded-xl text-xs font-bold border border-rose-500/30">Rejeitados 🗑️</button>
-                        <button onclick="clearSpecific('Concluído')" class="bg-green-500/20 text-green-500 px-4 py-2 rounded-xl text-xs font-bold border border-green-500/30">Concluídos 🗑️</button>
+                        <button onclick="filterAdmin('Conserto')" class="bg-red-500/20 text-red-500 px-4 py-2 rounded-xl text-xs font-bold border border-red-500/30">Consertos</button>
+                        <button onclick="filterAdmin('Pendente')" class="bg-yellow-500/20 text-yellow-500 px-4 py-2 rounded-xl text-xs font-bold border border-yellow-500/30">Pendentes</button>
+                        <button onclick="filterAdmin('Em Análise')" class="bg-blue-500/20 text-blue-500 px-4 py-2 rounded-xl text-xs font-bold border border-blue-500/30">Análise</button>
+                        <button onclick="filterAdmin('Rejeitado')" class="bg-rose-500/20 text-rose-500 px-4 py-2 rounded-xl text-xs font-bold border border-rose-500/30">Rejeitados</button>
+                        <button onclick="filterAdmin('Concluído')" class="bg-green-500/20 text-green-500 px-4 py-2 rounded-xl text-xs font-bold border border-green-500/30">Concluídos</button>
                     </div>
                     <input type="text" id="adminSearch" onkeyup="loadAdmin()" placeholder="Buscar..." class="input-dark p-3 rounded-xl text-xs w-full md:w-48">
                 </div>
@@ -416,24 +416,22 @@
             }
         }
 
-        // --- NOVAS FUNÇÕES DE LIMPEZA ---
-
-        async function clearSpecific(tipo) {
-            const confirmacao = confirm(`Deseja apagar TODOS os pedidos do tipo/status: ${tipo}?`);
-            if(!confirmacao) return;
-            for(let id in allPedidos) {
-                if(allPedidos[id].status === tipo || allPedidos[id].type === tipo) {
-                    await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' });
-                }
-            }
-            loadAdmin();
-            Swal.fire('Limpo!', `Todos os ${tipo} foram apagados.`, 'success');
-        }
-
+        // --- FUNÇÃO DE LIMPEZA DO RANKING ---
         function clearTopPedidos() {
-            if(confirm("Deseja limpar as estatísticas de Top Pedidos visualmente?")) {
-                document.getElementById('ranking-list').innerHTML = "<p class='text-xs text-slate-500'>Ranking resetado.</p>";
-            }
+            Swal.fire({
+                title: 'Zerar Ranking?',
+                text: "Isso limpará a visualização das estatísticas de Top Pedidos.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#3085d6',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Sim, zerar!',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    document.getElementById('ranking-list').innerHTML = "<p class='text-xs text-slate-500'>Ranking resetado.</p>";
+                }
+            });
         }
 
         async function verTodosUsuarios() {
@@ -448,7 +446,7 @@
                     </div>`;
                 });
                 Swal.fire({
-                    title: 'Pedintes Cadastrados',
+                    title: 'Clientes Cadastrados',
                     html: `<div class="max-h-60 overflow-y-auto">${lista}</div>`,
                     confirmButtonText: 'Fechar'
                 });
