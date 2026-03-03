@@ -490,20 +490,24 @@
             loadAdmin();
         }
 
+        // --- FUNÇÃO MODIFICADA COM ANIMAÇÃO ---
         async function deletePedido(id) {
             if (confirm('Excluir este pedido?')) { 
                 const row = document.getElementById(`row-${id}`);
-                if (row) row.classList.add('exit-animate');
-                
-                setTimeout(async () => {
-                    try {
-                        await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' }); 
-                        loadAdmin(); 
-                    } catch(e) { 
-                        Swal.fire('Erro', 'Falha ao deletar no servidor.', 'error');
-                        loadAdmin(); // Recarrega para remover a classe de animação caso falhe
-                    }
-                }, 400);
+                if (row) {
+                    row.classList.add('exit-animate'); // Inicia a animação
+                    setTimeout(async () => { // Espera o tempo da animação (400ms)
+                        try {
+                            await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' }); 
+                            loadAdmin(); 
+                        } catch(e) { 
+                            loadAdmin(); 
+                        }
+                    }, 400);
+                } else {
+                    await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' }); 
+                    loadAdmin();
+                }
             }
         }
 
@@ -551,18 +555,24 @@
             } catch(e) { Swal.fire('Erro', 'Não carregou usuários.', 'error'); }
         }
 
+        // --- FUNÇÃO MODIFICADA COM ANIMAÇÃO ---
         async function deleteUsuario(wpp) {
             if (confirm(`Excluir cliente ${wpp}?`)) {
                 const userRow = document.getElementById(`user-${wpp}`);
-                if(userRow) userRow.classList.add('exit-animate');
-                
-                setTimeout(async () => {
-                    try {
-                        await fetch(`${USERS_URL}/${wpp}.json`, { method: 'DELETE' });
-                        Swal.fire('Excluído!', 'O cliente foi removido.', 'success');
-                        verTodosUsuarios(); 
-                    } catch(e) { Swal.fire('Erro', 'Falha na exclusão.', 'error'); }
-                }, 400);
+                if(userRow) {
+                    userRow.classList.add('exit-animate'); // Inicia a animação
+                    setTimeout(async () => { // Espera 400ms
+                        try {
+                            await fetch(`${USERS_URL}/${wpp}.json`, { method: 'DELETE' });
+                            verTodosUsuarios(); // Recarrega o modal de usuários
+                        } catch(e) { 
+                            verTodosUsuarios();
+                        }
+                    }, 400);
+                } else {
+                    await fetch(`${USERS_URL}/${wpp}.json`, { method: 'DELETE' });
+                    verTodosUsuarios();
+                }
             }
         }
 
