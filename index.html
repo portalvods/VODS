@@ -372,7 +372,15 @@
                             <img src="${p.img}" class="w-12 h-16 rounded-xl object-cover ${p.type === 'Conserto' ? 'urgente' : ''}">
                             <div><p class="font-bold text-sm text-white">${p.name}</p><span class="text-[9px] uppercase font-black">${p.type}</span></div>
                         </td>
-                        <td class="p-6 text-xs text-slate-400"><b>${p.user}</b><br>${p.wpp}</td>
+                        <td class="p-6 text-xs text-slate-400">
+                            <b>${p.user}</b><br>
+                            <div class="flex items-center gap-2">
+                                ${p.wpp}
+                                <a href="https://wa.me/${p.wpp}" target="_blank" class="bg-green-600 hover:bg-green-700 text-white w-5 h-5 flex items-center justify-center rounded-full transition">
+                                    <i class="fab fa-whatsapp text-[10px]"></i>
+                                </a>
+                            </div>
+                        </td>
                         <td class="p-6 text-[10px] text-blue-400 font-bold">${p.date || '---'}</td> <td class="p-6"><span class="status-badge status-${p.status.toLowerCase().replace(/ /g, '').replace('á','a')}">${p.status}</span></td>
                         <td class="p-6 text-center">
                             <select onchange="handleStatusChange('${id}', this.value)" class="text-[10px] p-2 bg-slate-800 rounded-xl">
@@ -416,20 +424,24 @@
             }
         }
 
-        // --- FUNÇÃO DE LIMPEZA DO RANKING ---
-        function clearTopPedidos() {
+        // --- FUNÇÃO DE LIMPEZA DO RANKING (APAGA PEDIDOS DO BANCO PARA ZERAR TOP) ---
+        async function clearTopPedidos() {
             Swal.fire({
                 title: 'Zerar Ranking?',
-                text: "Isso limpará a visualização das estatísticas de Top Pedidos.",
+                text: "Isso apagará o histórico de pedidos para zerar as estatísticas.",
                 icon: 'warning',
                 showCancelButton: true,
-                confirmButtonColor: '#3085d6',
-                cancelButtonColor: '#d33',
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
                 confirmButtonText: 'Sim, zerar!',
                 cancelButtonText: 'Cancelar'
-            }).then((result) => {
+            }).then(async (result) => {
                 if (result.isConfirmed) {
-                    document.getElementById('ranking-list').innerHTML = "<p class='text-xs text-slate-500'>Ranking resetado.</p>";
+                    try {
+                        await fetch(DATABASE_URL, { method: 'DELETE' });
+                        Swal.fire('Sucesso', 'Ranking zerado.', 'success');
+                        loadAdmin();
+                    } catch(e) { Swal.fire('Erro', 'Falha ao zerar.', 'error'); }
                 }
             });
         }
