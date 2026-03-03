@@ -493,10 +493,16 @@
         async function deletePedido(id) {
             if (confirm('Excluir este pedido?')) { 
                 const row = document.getElementById(`row-${id}`);
-                row.classList.add('exit-animate');
+                if (row) row.classList.add('exit-animate');
+                
                 setTimeout(async () => {
-                    await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' }); 
-                    loadAdmin(); 
+                    try {
+                        await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' }); 
+                        loadAdmin(); 
+                    } catch(e) { 
+                        Swal.fire('Erro', 'Falha ao deletar no servidor.', 'error');
+                        loadAdmin(); // Recarrega para remover a classe de animação caso falhe
+                    }
                 }, 400);
             }
         }
