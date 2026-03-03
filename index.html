@@ -230,6 +230,7 @@
                     body: JSON.stringify({ username, nome, wpp, senha, codigo: codigoOTP, verificado: false })
                 });
                 tempWppForOTP = wpp;
+                authFluxo = 'registro';
                 document.getElementById('page-auth').classList.add('hidden');
                 document.getElementById('page-otp').classList.remove('hidden');
                 document.getElementById('otp-msg').innerText = `Código enviado para ${wpp}`;
@@ -252,11 +253,59 @@
                         ativarModoLogado();
                     } else {
                         tempWppForOTP = user.wpp;
+                        authFluxo = 'registro';
                         document.getElementById('page-auth').classList.add('hidden');
                         document.getElementById('page-otp').classList.remove('hidden');
                     }
                 } else { Swal.fire('Erro', 'Dados incorretos', 'error'); }
             } catch(e) { Swal.fire('Erro', 'Erro servidor', 'error'); }
+        }
+
+        async function verifyOTP() {
+            const codeInput = document.getElementById('otpCode').value;
+            try {
+                const res = await fetch(`${USERS_URL}/${tempWppForOTP}.json`);
+                const user = await res.json();
+                if(user && user.codigo === codeInput) {
+                    if(authFluxo === 'registro') {
+                        await fetch(`${USERS_URL}/${tempWppForOTP}.json`, { method: 'PATCH', body: JSON.stringify({ verificado: true }) });
+                        currentUserLogado = user;
+                        localStorage.setItem('vod_user', JSON.stringify(user));
+                        ativarModoLogado();
+                        document.getElementById('page-otp').classList.add('hidden');
+                    } else {
+                        document.getElementById('page-otp').classList.add('hidden');
+                        document.getElementById('page-new-password').classList.remove('hidden');
+                    }
+                } else { Swal.fire('Erro', 'Código incorreto!', 'error'); }
+            } catch(e) { Swal.fire('Erro', 'Falha na verificação', 'error'); }
+        }
+
+        async function forgotPasswordApp() {
+            const wpp = document.getElementById('forgotWpp').value;
+            if(!wpp) return Swal.fire('Erro', 'Digite o WhatsApp', 'warning');
+            try {
+                const res = await fetch(`${USERS_URL}/${wpp}.json`);
+                const user = await res.json();
+                if(user) {
+                    const novoCodigo = Math.floor(100000 + Math.random() * 900000).toString();
+                    await fetch(`${USERS_URL}/${wpp}.json`, { method: 'PATCH', body: JSON.stringify({ codigo: novoCodigo }) });
+                    tempWppForOTP = wpp;
+                    authFluxo = 'recuperacao';
+                    document.getElementById('page-auth').classList.add('hidden');
+                    document.getElementById('page-otp').classList.remove('hidden');
+                    document.getElementById('otp-msg').innerText = `Código enviado para ${wpp}`;
+                } else { Swal.fire('Erro', 'WhatsApp não encontrado', 'error'); }
+            } catch(e) { Swal.fire('Erro', 'Falha no servidor', 'error'); }
+        }
+
+        async function saveNewPassword() {
+            const novaSenha = document.getElementById('newPassInput').value;
+            if(novaSenha.length < 8) return Swal.fire('Erro', 'Mínimo 8 caracteres', 'warning');
+            try {
+                await fetch(`${USERS_URL}/${tempWppForOTP}.json`, { method: 'PATCH', body: JSON.stringify({ senha: novaSenha }) });
+                Swal.fire('Sucesso', 'Senha alterada!', 'success').then(() => location.reload());
+            } catch(e) { Swal.fire('Erro', 'Falha ao salvar senha', 'error'); }
         }
 
         function logoutApp() {
@@ -476,11 +525,9 @@
             if (confirm(`Tem certeza que deseja excluir o cliente com WhatsApp ${wpp}?`)) {
                 try {
                     await fetch(`${USERS_URL}/${wpp}.json`, { method: 'DELETE' });
-                    Swal.fire('Excluído!', 'O cliente foi removido com sucesso.', 'success');
-                    verTodosUsuarios(); // Atualiza a lista no modal
-                } catch(e) {
-                    Swal.fire('Erro', 'Não foi possível excluir o cliente.', 'error');
-                }
+                    Swal.fire('Excluído!', 'O cliente foi removido.', 'success');
+                    verTodosUsuarios(); 
+                } catch(e) { Swal.fire('Erro', 'Falha na exclusão.', 'error'); }
             }
         }
 
