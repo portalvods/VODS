@@ -173,6 +173,7 @@
                         <button onclick="filterAdmin('Tudo')" class="bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold text-white transition active:scale-95">Tudo</button>
                         <button onclick="filterAdmin('Conserto')" class="bg-red-500/20 text-red-500 px-4 py-2 rounded-xl text-xs font-bold border border-red-500/30 transition active:scale-95">Consertos</button>
                         <button onclick="filterAdmin('Pendente')" class="bg-yellow-500/20 text-yellow-500 px-4 py-2 rounded-xl text-xs font-bold border border-yellow-500/30 transition active:scale-95">Pendentes</button>
+                        <button onclick="filterAdmin('Em Análise')" class="bg-blue-500/20 text-blue-500 px-4 py-2 rounded-xl text-xs font-bold border border-blue-500/30 transition active:scale-95">Em Análise</button>
                         <button onclick="filterAdmin('Concluído')" class="bg-green-500/20 text-green-500 px-4 py-2 rounded-xl text-xs font-bold border border-green-500/30 transition active:scale-95">Concluídos</button>
                     </div>
                     <input type="text" id="adminSearch" onkeyup="loadAdmin()" placeholder="Buscar..." class="input-dark p-3 rounded-xl text-xs w-full md:w-48">
@@ -490,25 +491,34 @@
             loadAdmin();
         }
 
-        // --- FUNÇÃO MODIFICADA COM ANIMAÇÃO ---
+        // --- ALTERAÇÃO 2: FUNÇÃO MODIFICADA COM SWAL E ANIMAÇÃO ---
         async function deletePedido(id) {
-            if (confirm('Excluir este pedido?')) { 
-                const row = document.getElementById(`row-${id}`);
-                if (row) {
-                    row.classList.add('exit-animate'); // Inicia a animação
-                    setTimeout(async () => { // Espera o tempo da animação (400ms)
-                        try {
-                            await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' }); 
-                            loadAdmin(); 
-                        } catch(e) { 
-                            loadAdmin(); 
-                        }
-                    }, 400);
-                } else {
-                    await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' }); 
-                    loadAdmin();
+            Swal.fire({
+                title: 'Excluir este pedido?',
+                text: "Esta ação removerá o pedido permanentemente.",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#d33',
+                cancelButtonColor: '#3085d6',
+                confirmButtonText: 'Sim, excluir!',
+                cancelButtonText: 'Cancelar'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    const row = document.getElementById(`row-${id}`);
+                    if (row) {
+                        row.classList.add('exit-animate'); 
+                        setTimeout(async () => { 
+                            try {
+                                await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' }); 
+                                loadAdmin(); 
+                            } catch(e) { loadAdmin(); }
+                        }, 400);
+                    } else {
+                        await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' }); 
+                        loadAdmin();
+                    }
                 }
-            }
+            });
         }
 
         async function clearTopPedidos() {
@@ -555,25 +565,33 @@
             } catch(e) { Swal.fire('Erro', 'Não carregou usuários.', 'error'); }
         }
 
-        // --- FUNÇÃO MODIFICADA COM ANIMAÇÃO ---
+        // --- ALTERAÇÃO 2: FUNÇÃO MODIFICADA COM SWAL E ANIMAÇÃO ---
         async function deleteUsuario(wpp) {
-            if (confirm(`Excluir cliente ${wpp}?`)) {
-                const userRow = document.getElementById(`user-${wpp}`);
-                if(userRow) {
-                    userRow.classList.add('exit-animate'); // Inicia a animação
-                    setTimeout(async () => { // Espera 400ms
-                        try {
-                            await fetch(`${USERS_URL}/${wpp}.json`, { method: 'DELETE' });
-                            verTodosUsuarios(); // Recarrega o modal de usuários
-                        } catch(e) { 
-                            verTodosUsuarios();
-                        }
-                    }, 400);
-                } else {
-                    await fetch(`${USERS_URL}/${wpp}.json`, { method: 'DELETE' });
-                    verTodosUsuarios();
+            Swal.fire({
+                title: 'Excluir cliente?',
+                text: `Deseja remover o acesso de ${wpp}?`,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#e74c3c',
+                confirmButtonText: 'Sim, excluir',
+                cancelButtonText: 'Manter'
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    const userRow = document.getElementById(`user-${wpp}`);
+                    if(userRow) {
+                        userRow.classList.add('exit-animate'); 
+                        setTimeout(async () => { 
+                            try {
+                                await fetch(`${USERS_URL}/${wpp}.json`, { method: 'DELETE' });
+                                verTodosUsuarios(); 
+                            } catch(e) { verTodosUsuarios(); }
+                        }, 400);
+                    } else {
+                        await fetch(`${USERS_URL}/${wpp}.json`, { method: 'DELETE' });
+                        verTodosUsuarios();
+                    }
                 }
-            }
+            });
         }
 
         function exportToExcel() {
