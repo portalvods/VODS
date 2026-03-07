@@ -14,14 +14,12 @@
         .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
         .input-dark { background: #1e293b; border: 1px solid #334155; color: white; transition: 0.3s; }
         
-        /* CORES DOS STATUS NOS BADGES (MEUS PEDIDOS) */
         .status-badge { font-size: 10px; font-weight: 800; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; }
         .status-pendente { background: #78350f; color: #fef3c7; }
         .status-analise { background: #1e40af; color: #dbeafe; }
         .status-concluido { background: #064e3b; color: #dcfce7; }
         .status-rejeitado { background: #7f1d1d; color: #fee2e2; }
 
-        /* CORES DOS BOTÕES DE FILTRO (ACIMA DOS PEDIDOS) */
         .btn-filter { padding: 10px 20px; border-radius: 12px; font-size: 11px; font-weight: 800; text-transform: uppercase; transition: 0.3s; border: 1px solid rgba(255,255,255,0.1); color: white; cursor: pointer; }
         #f-Todos { background: #475569; }
         #f-Análise { background: #1e40af; }
@@ -29,10 +27,8 @@
         #f-Rejeitado { background: #991b1b; }
         .active-filter { border: 2px solid white !important; transform: scale(1.05); box-shadow: 0 0 15px rgba(255,255,255,0.2); }
 
-        .swal2-popup { background: #0f172a !important; color: #fff !important; border: 1px solid #334155 !important; }
-        
-        /* DESIGN DO DASHBOARD ADMIN */
         .stat-card { background: linear-gradient(145deg, #1e293b, #0f172a); border: 1px solid rgba(255,255,255,0.05); border-radius: 24px; padding: 20px; }
+        .swal2-popup { background: #0f172a !important; color: #fff !important; border: 1px solid #334155 !important; }
     </style>
 </head>
 <body>
@@ -66,12 +62,12 @@
             const numLimpo = numero.replace(/\D/g, '');
             const finalNum = numLimpo.startsWith('55') ? numLimpo : '55' + numLimpo;
             try {
-                await fetch(WHATSAPP_API_URL, {
+                const response = await fetch(WHATSAPP_API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${WHATSAPP_TOKEN}` },
                     body: JSON.stringify({ number: finalNum, message: mensagem })
                 });
-                return true; 
+                return response.ok; 
             } catch (e) { return false; }
         }
     </script>
@@ -85,31 +81,6 @@
             <button onclick="logoutApp()" class="px-4 py-2 rounded-xl text-xs font-bold text-red-400">Sair</button>
         </nav>
     </header>
-
-    <div id="admin-dashboard-stats" class="container mx-auto px-6 mb-8 hidden">
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-            <div class="stat-card">
-                <p class="text-[10px] font-bold text-slate-400 uppercase">Total Pedidos</p>
-                <h3 id="stat-total" class="text-3xl font-black text-white">0</h3>
-            </div>
-            <div class="stat-card border-b-4 border-amber-600">
-                <p class="text-[10px] font-bold text-amber-500 uppercase">Pendentes</p>
-                <h3 id="stat-pendente" class="text-3xl font-black text-white">0</h3>
-            </div>
-            <div class="stat-card border-b-4 border-blue-600">
-                <p class="text-[10px] font-bold text-blue-500 uppercase">Em Análise</p>
-                <h3 id="stat-analise" class="text-3xl font-black text-white">0</h3>
-            </div>
-            <div class="stat-card border-b-4 border-green-600">
-                <p class="text-[10px] font-bold text-green-500 uppercase">Concluídos</p>
-                <h3 id="stat-concluido" class="text-3xl font-black text-white">0</h3>
-            </div>
-            <div class="stat-card border-b-4 border-red-600">
-                <p class="text-[10px] font-bold text-red-500 uppercase">Rejeitados</p>
-                <h3 id="stat-rejeitado" class="text-3xl font-black text-white">0</h3>
-            </div>
-        </div>
-    </div>
 
     <main id="page-auth" class="container mx-auto max-w-md mt-16 p-4">
         <div class="glass p-10 rounded-[40px] text-center border border-white/10">
@@ -126,9 +97,9 @@
             <div id="form-register" class="space-y-4 hidden">
                 <input type="text" id="regUser" placeholder="Usuário" class="w-full input-dark p-4 rounded-2xl">
                 <input type="text" id="regName" placeholder="Nome Completo" class="w-full input-dark p-4 rounded-2xl">
-                <input type="tel" id="regWpp" placeholder="WhatsApp (DDD + Número)" class="w-full input-dark p-4 rounded-2xl">
+                <input type="tel" id="regWpp" placeholder="WhatsApp" class="w-full input-dark p-4 rounded-2xl">
                 <input type="password" id="regPass" placeholder="Senha" class="w-full input-dark p-4 rounded-2xl">
-                <button onclick="registerApp()" class="w-full py-4 bg-green-600 rounded-2xl font-black">CADASTRAR E VALIDAR</button>
+                <button onclick="registerApp()" class="w-full py-4 bg-green-600 rounded-2xl font-black">CADASTRAR</button>
                 <button onclick="toggleAuthMode('login')" class="text-xs text-slate-400 block mx-auto">Voltar</button>
             </div>
             <div id="form-forgot" class="space-y-4 hidden text-left">
@@ -143,9 +114,9 @@
     <main id="page-otp" class="container mx-auto max-w-md mt-20 p-4 hidden text-center">
         <div class="glass p-10 rounded-[40px]">
             <i class="fab fa-whatsapp text-6xl text-green-500 mb-6"></i>
-            <h2 class="text-2xl font-black mb-2 text-white">Valide seu WhatsApp</h2>
+            <h2 class="text-2xl font-black mb-2 text-white">Valide o Código</h2>
             <input type="text" id="otpCode" placeholder="000000" class="w-full input-dark p-4 rounded-2xl text-center text-3xl font-black tracking-widest">
-            <button onclick="verifyOTP()" class="w-full py-4 bg-green-600 rounded-2xl font-black mt-8">CONCLUIR</button>
+            <button onclick="verifyOTP()" class="w-full py-4 bg-green-600 rounded-2xl font-black mt-8">VERIFICAR</button>
             <button onclick="reenviarOTP()" class="mt-4 text-xs text-blue-400 underline">Reenviar código</button>
         </div>
     </main>
@@ -167,14 +138,19 @@
     </main>
 
     <main id="page-admin" class="container mx-auto max-w-7xl p-6 hidden">
+        <div id="admin-stats-container" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+            <div class="stat-card"><p class="text-[10px] font-bold text-slate-400 uppercase">Total</p><h3 id="stat-total" class="text-3xl font-black text-white">0</h3></div>
+            <div class="stat-card border-b-4 border-amber-600"><p class="text-[10px] font-bold text-amber-500 uppercase">Pendentes</p><h3 id="stat-pendente" class="text-3xl font-black text-white">0</h3></div>
+            <div class="stat-card border-b-4 border-blue-600"><p class="text-[10px] font-bold text-blue-500 uppercase">Análise</p><h3 id="stat-analise" class="text-3xl font-black text-white">0</h3></div>
+            <div class="stat-card border-b-4 border-green-600"><p class="text-[10px] font-bold text-green-500 uppercase">Concluídos</p><h3 id="stat-concluido" class="text-3xl font-black text-white">0</h3></div>
+            <div class="stat-card border-b-4 border-red-600"><p class="text-[10px] font-bold text-red-500 uppercase">Rejeitados</p><h3 id="stat-rejeitado" class="text-3xl font-black text-white">0</h3></div>
+        </div>
+
         <div class="grid lg:grid-cols-4 gap-8">
             <div class="lg:col-span-1 space-y-6">
-                <div class="glass p-6 rounded-3xl">
-                    <h3 class="text-xs font-black text-blue-400 uppercase mb-4">Top 10 Pedidos</h3>
-                    <div id="ranking-list" class="space-y-2"></div>
-                </div>
-                <button onclick="abrirModalClientes()" class="w-full py-4 bg-blue-600 rounded-2xl text-xs font-bold">LISTA DE CLIENTES</button>
-                <button onclick="zerarRanking()" class="w-full py-2 bg-red-900/30 text-red-500 rounded-xl text-[10px] font-bold">ZERAR TUDO</button>
+                <div class="glass p-6 rounded-3xl"><h3 class="text-xs font-black text-blue-400 uppercase mb-4">Top 10</h3><div id="ranking-list" class="space-y-2"></div></div>
+                <button onclick="abrirModalClientes()" class="w-full py-4 bg-blue-600 rounded-2xl text-xs font-bold">CLIENTES</button>
+                <button onclick="zerarRanking()" class="w-full py-2 bg-red-900/30 text-red-500 rounded-xl text-[10px] font-bold uppercase">Zerar Tudo</button>
             </div>
             <div class="lg:col-span-3">
                 <div class="flex flex-wrap gap-2 mb-6">
@@ -183,10 +159,10 @@
                     <button onclick="filterAdmin('Concluído')" class="btn-filter" id="f-Concluído">Concluído</button>
                     <button onclick="filterAdmin('Rejeitado')" class="btn-filter" id="f-Rejeitado">Rejeitados</button>
                 </div>
-                <div class="glass rounded-3xl overflow-hidden border border-white/5">
+                <div class="glass rounded-3xl overflow-hidden">
                     <table class="w-full text-left">
                         <thead class="bg-slate-900/80 text-[10px] uppercase text-slate-500 font-black">
-                            <tr><th class="p-4">Conteúdo</th><th class="p-4">Cliente / WhatsApp</th><th class="p-4">Status</th><th class="p-4 text-center">Ação</th></tr>
+                            <tr><th class="p-4">Conteúdo</th><th class="p-4">Usuário</th><th class="p-4">Status</th><th class="p-4 text-center">Ação</th></tr>
                         </thead>
                         <tbody id="admin-table" class="divide-y divide-white/5"></tbody>
                     </table>
@@ -206,6 +182,8 @@
                     <option value="🎬 Solicitar atualização">🎬 Solicitar atualização</option>
                     <option value="👨🏻‍🔧 Relatar um problema">👨🏻‍🔧 Relatar um problema</option>
                 </select>
+                <label class="font-bold text-slate-500 uppercase ml-2">Anexar Print/Foto</label>
+                <input type="file" id="userPhoto" accept="image/*" class="w-full input-dark p-3 rounded-2xl">
                 <textarea id="userObs" placeholder="Algum detalhe extra?" class="w-full input-dark p-4 rounded-2xl h-24"></textarea>
             </div>
             <button onclick="saveToFirebase()" class="w-full py-4 bg-blue-600 rounded-2xl font-black mt-6">ENVIAR</button>
@@ -214,7 +192,7 @@
     </div>
 
     <script>
-        // --- RECUPERAÇÃO E OTP ---
+        // RECUPERAÇÃO DE SENHA CORRIGIDA
         async function forgotPassword() {
             const wpp = document.getElementById('forgotWpp').value.replace(/\D/g,'');
             if(!wpp) return Swal.fire('Erro', 'Digite seu WhatsApp', 'warning');
@@ -224,13 +202,14 @@
                 isPasswordReset = true;
                 tempWppForOTP = wpp;
                 const code = Math.floor(100000 + Math.random() * 900000).toString();
+                // Primeiro salvamos o código no banco para não ter erro de "código inválido" na chegada
                 await fetch(`${USERS_URL}/${wpp}.json`, { method: 'PATCH', body: JSON.stringify({ codigo: code }) });
-                const sent = await dispararWhatsApp(wpp, `Seu código de recuperação: ${code}`);
+                const sent = await dispararWhatsApp(wpp, `Recuperação Portal VOD. Código: ${code}`);
                 if(sent) {
                     document.getElementById('page-auth').classList.add('hidden');
                     document.getElementById('page-otp').classList.remove('hidden');
-                } else { Swal.fire('Erro', 'Não foi possível enviar o código.', 'error'); }
-            } else { Swal.fire('Erro', 'WhatsApp não cadastrado!', 'error'); }
+                } else { Swal.fire('Erro', 'Não foi possível enviar o código agora.', 'error'); }
+            } else { Swal.fire('Erro', 'WhatsApp não encontrado!', 'error'); }
         }
 
         async function verifyOTP() {
@@ -239,7 +218,7 @@
             const user = await res.json();
             if(user && user.codigo === codeInp) {
                 if(isPasswordReset) {
-                    const { value: newPass } = await Swal.fire({ title: 'Nova Senha', input: 'password', inputLabel: 'Digite sua nova senha' });
+                    const { value: newPass } = await Swal.fire({ title: 'Nova Senha', input: 'password', inputLabel: 'Defina sua senha' });
                     if(newPass) {
                         await fetch(`${USERS_URL}/${tempWppForOTP}.json`, { method: 'PATCH', body: JSON.stringify({ senha: newPass, verificado: true }) });
                         Swal.fire('Sucesso!', 'Senha alterada.', 'success').then(() => location.reload());
@@ -251,7 +230,52 @@
             } else { Swal.fire('Erro', 'Código Inválido', 'error'); }
         }
 
-        // --- ADMIN E DASHBOARD ---
+        // BUSCA TMDB (CANAIS DE TV CORRIGIDOS)
+        async function handleSearch() {
+            const q = document.getElementById('searchInput').value;
+            if(q.length < 3) return;
+            // Se for 'tv', usamos o endpoint de 'tv', se for 'movie', o endpoint 'multi'
+            const endpoint = searchMode === 'tv' ? 'tv' : 'multi';
+            const res = await fetch(`https://api.themoviedb.org/3/search/${endpoint}?api_key=${API_KEY_TMDB}&language=pt-BR&query=${q}`);
+            const data = await res.json();
+            document.getElementById('grid-content').innerHTML = data.results.filter(i => i.poster_path).map(i => `
+                <div class="glass p-3 rounded-[24px]">
+                    <img src="https://image.tmdb.org/t/p/w500${i.poster_path}" class="w-full h-60 object-cover rounded-[20px] mb-3">
+                    <h4 class="font-bold text-[11px] truncate">${i.title || i.name}</h4>
+                    <button onclick="openModal('${(i.title || i.name).replace(/'/g, "")}', 'https://image.tmdb.org/t/p/w500${i.poster_path}')" class="w-full bg-blue-600/10 text-blue-400 py-2 rounded-xl text-[10px] font-black mt-3">SOLICITAR</button>
+                </div>`).join('');
+        }
+
+        // SALVAR COM FOTO
+        async function saveToFirebase() {
+            const photoFile = document.getElementById('userPhoto').files[0];
+            let photoBase64 = "";
+
+            if (photoFile) {
+                const reader = new FileReader();
+                reader.readAsDataURL(photoFile);
+                photoBase64 = await new Promise(resolve => {
+                    reader.onload = () => resolve(reader.result);
+                });
+            }
+
+            const data = { 
+                ...currentItem, 
+                user: currentUserLogado.nome, 
+                wpp: currentUserLogado.wpp, 
+                status: 'Pendente', 
+                type: document.getElementById('requestType').value, 
+                obs: document.getElementById('userObs').value,
+                photo: photoBase64,
+                date: new Date().toLocaleDateString('pt-BR') 
+            };
+            
+            await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify(data) });
+            await dispararWhatsApp(ADMIN_WPP, `🚨 PEDIDO: ${currentUserLogado.nome} solicitou ${currentItem.name}`);
+            Swal.fire('Enviado!', '', 'success'); closeModal();
+        }
+
+        // LÓGICA DE ADMIN E ESTATÍSTICAS
         async function loadAdmin() {
             const res = await fetch(DATABASE_URL);
             const data = await res.json() || {};
@@ -275,9 +299,9 @@
                 return `<tr>
                     <td class="p-4 flex items-center gap-3">
                         <img src="${p.img}" class="w-10 h-14 rounded-lg object-cover">
-                        <div class="text-[11px] font-bold">${p.name}</div>
+                        <div class="text-[11px] font-bold">${p.name} ${p.photo ? '📸' : ''}</div>
                     </td>
-                    <td class="p-4 text-[10px] text-slate-400 font-bold">${p.user}<br>${p.wpp}</td>
+                    <td class="p-4 text-[10px] text-slate-400 font-bold">${p.user}</td>
                     <td class="p-4">
                         <select onchange="updateStatus('${id}', this.value, '${p.wpp}', '${p.name}')" class="bg-slate-800 text-[10px] p-2 rounded-lg">
                             <option value="Pendente" ${p.status==='Pendente'?'selected':''}>Pendente</option>
@@ -302,15 +326,11 @@
             rankingList.innerHTML = sorted.map(([name, count]) => `<div class="flex justify-between items-center bg-white/5 p-2 rounded-xl text-[10px] font-bold"><span>${name}</span><span class="text-blue-500">${count}x</span></div>`).join('');
         }
 
-        // --- CORE DO APP ---
+        // NAVEGAÇÃO E PERSISTÊNCIA
         function ativarModoLogado(page = 'cliente') {
             document.getElementById('page-auth').classList.add('hidden');
-            document.getElementById('page-otp').classList.add('hidden');
             document.getElementById('main-header').classList.remove('hidden');
-            if(currentUserLogado.wpp === ADMIN_WPP) {
-                document.getElementById('btn-nav-admin').classList.remove('hidden');
-                document.getElementById('admin-dashboard-stats').classList.remove('hidden');
-            }
+            if(currentUserLogado.wpp === ADMIN_WPP) document.getElementById('btn-nav-admin').classList.remove('hidden');
             showPage(page);
         }
 
@@ -322,26 +342,6 @@
             if(p === 'status') trackRequests();
         }
 
-        async function handleSearch() {
-            const q = document.getElementById('searchInput').value;
-            if(q.length < 3) return;
-            const res = await fetch(`https://api.themoviedb.org/3/search/${searchMode==='movie'?'multi':'tv'}?api_key=${API_KEY_TMDB}&language=pt-BR&query=${q}`);
-            const data = await res.json();
-            document.getElementById('grid-content').innerHTML = data.results.filter(i => i.poster_path).map(i => `
-                <div class="glass p-3 rounded-[24px]">
-                    <img src="https://image.tmdb.org/t/p/w500${i.poster_path}" class="w-full h-60 object-cover rounded-[20px] mb-3">
-                    <h4 class="font-bold text-[11px] truncate">${i.title || i.name}</h4>
-                    <button onclick="openModal('${(i.title || i.name).replace(/'/g, "")}', 'https://image.tmdb.org/t/p/w500${i.poster_path}')" class="w-full bg-blue-600/10 text-blue-400 py-2 rounded-xl text-[10px] font-black mt-3">SOLICITAR</button>
-                </div>`).join('');
-        }
-
-        async function saveToFirebase() {
-            const data = { ...currentItem, user: currentUserLogado.nome, wpp: currentUserLogado.wpp, status: 'Pendente', type: document.getElementById('requestType').value, obs: document.getElementById('userObs').value, date: new Date().toLocaleDateString('pt-BR') };
-            await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify(data) });
-            await dispararWhatsApp(ADMIN_WPP, `🚨 NOVO PEDIDO: ${currentUserLogado.nome} quer ${currentItem.name}`);
-            Swal.fire('Enviado!', '', 'success'); closeModal();
-        }
-
         async function loginApp() {
             const userInp = document.getElementById('loginUser').value.trim();
             const passInp = document.getElementById('loginPass').value;
@@ -349,13 +349,12 @@
             const users = await res.json() || {};
             const user = Object.values(users).find(u => (u.username === userInp || u.wpp === userInp) && u.senha === passInp);
             if(user) {
-                if(!user.verificado) { tempWppForOTP = user.wpp; isPasswordReset = false; await reenviarOTP(); document.getElementById('page-auth').classList.add('hidden'); document.getElementById('page-otp').classList.remove('hidden'); return; }
+                if(!user.verificado) { tempWppForOTP = user.wpp; await reenviarOTP(); document.getElementById('page-auth').classList.add('hidden'); document.getElementById('page-otp').classList.remove('hidden'); return; }
                 currentUserLogado = user; localStorage.setItem('vod_user', JSON.stringify(user)); ativarModoLogado();
             } else { Swal.fire('Erro', 'Dados incorretos', 'error'); }
         }
 
         async function registerApp() {
-            isPasswordReset = false;
             const wpp = document.getElementById('regWpp').value.replace(/\D/g,'');
             const code = Math.floor(100000 + Math.random() * 900000).toString();
             const data = { username: document.getElementById('regUser').value, nome: document.getElementById('regName').value, wpp: wpp, senha: document.getElementById('regPass').value, codigo: code, verificado: false };
@@ -364,42 +363,29 @@
             document.getElementById('page-auth').classList.add('hidden'); document.getElementById('page-otp').classList.remove('hidden');
         }
 
-        function toggleAuthMode(m) {
-            document.getElementById('form-login').classList.add('hidden');
-            document.getElementById('form-register').classList.add('hidden');
-            document.getElementById('form-forgot').classList.add('hidden');
-            document.getElementById(`form-${m}`).classList.remove('hidden');
-        }
-
-        function filterAdmin(st) {
-            currentFilter = st;
-            document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active-filter'));
-            document.getElementById(`f-${st}`).classList.add('active-filter');
-            loadAdmin();
-        }
-
         function openModal(name, img) { currentItem = { name, img }; document.getElementById('modalTitle').innerText = name; document.getElementById('modal-poster').innerHTML = `<img src="${img}" class="w-full h-full object-cover">`; document.getElementById('modal').classList.remove('hidden'); }
         function closeModal() { document.getElementById('modal').classList.add('hidden'); }
-        function logoutApp() { localStorage.removeItem('vod_user'); sessionStorage.clear(); location.reload(); }
-        async function updateStatus(id, st, wpp, name) { await fetch(`${DB_BASE}/pedidos/${id}.json`, { method: 'PATCH', body: JSON.stringify({ status: st }) }); await dispararWhatsApp(wpp, `✅ Pedido "${name}" atualizado para: ${st}`); loadAdmin(); }
-        async function deletePedido(id) { await fetch(`${DB_BASE}/pedidos/${id}.json`, { method: 'DELETE' }); loadAdmin(); }
         function setSearchMode(m) { searchMode = m; handleSearch(); }
+        function filterAdmin(st) { currentFilter = st; document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active-filter')); document.getElementById(`f-${st}`).classList.add('active-filter'); loadAdmin(); }
+        function logoutApp() { localStorage.removeItem('vod_user'); sessionStorage.clear(); location.reload(); }
+        function toggleAuthMode(m) { document.getElementById('form-login').classList.add('hidden'); document.getElementById('form-register').classList.add('hidden'); document.getElementById('form-forgot').classList.add('hidden'); document.getElementById(`form-${m}`).classList.remove('hidden'); }
+        async function updateStatus(id, st, wpp, name) { await fetch(`${DB_BASE}/pedidos/${id}.json`, { method: 'PATCH', body: JSON.stringify({ status: st }) }); loadAdmin(); }
+        async function deletePedido(id) { await fetch(`${DB_BASE}/pedidos/${id}.json`, { method: 'DELETE' }); loadAdmin(); }
         async function trackRequests() {
             const res = await fetch(DATABASE_URL);
             const data = await res.json() || {};
             const list = Object.values(data).filter(p => p.wpp === currentUserLogado.wpp).reverse();
             document.getElementById('track-results').innerHTML = list.map(p => {
-                const statusCls = p.status.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                return `<div class="glass p-5 rounded-3xl flex items-center gap-4"><img src="${p.img}" class="w-14 h-20 rounded-xl object-cover"><div class="flex-1 text-left"><h4 class="font-bold text-white text-sm">${p.name}</h4><div class="status-badge status-${statusCls}">${p.status}</div></div></div>`;
+                const st = p.status.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                return `<div class="glass p-5 rounded-3xl flex items-center gap-4"><img src="${p.img}" class="w-14 h-20 rounded-xl object-cover"><div class="flex-1 text-left"><h4 class="font-bold text-white text-sm">${p.name}</h4><div class="status-badge status-${st}">${p.status}</div></div></div>`;
             }).join('');
         }
         async function reenviarOTP() { const code = Math.floor(100000 + Math.random() * 900000).toString(); await fetch(`${USERS_URL}/${tempWppForOTP}.json`, { method: 'PATCH', body: JSON.stringify({ codigo: code }) }); await dispararWhatsApp(tempWppForOTP, `Seu código: ${code}`); }
-        async function zerarRanking() { const confirm = await Swal.fire({ title: 'Zerar todos os pedidos?', icon: 'warning', showCancelButton: true }); if(confirm.isConfirmed) { await fetch(DATABASE_URL, { method: 'DELETE' }); loadAdmin(); } }
+        async function zerarRanking() { const confirm = await Swal.fire({ title: 'Zerar tudo?', icon: 'warning', showCancelButton: true }); if(confirm.isConfirmed) { await fetch(DATABASE_URL, { method: 'DELETE' }); loadAdmin(); } }
         async function abrirModalClientes() {
-            const res = await fetch(`${USERS_URL}.json`);
-            const users = await res.json() || {};
+            const res = await fetch(`${USERS_URL}.json`); const users = await res.json() || {};
             let html = Object.keys(users).map(wpp => `<div id="u-${wpp}" class="flex justify-between items-center p-3 border-b border-white/5"><div class="text-left text-white"><p class="text-sm font-bold">${users[wpp].nome}</p><p class="text-xs text-slate-500">${wpp}</p></div><button onclick="excluirUsuario('${wpp}')" class="text-red-500"><i class="fas fa-trash"></i></button></div>`).join('');
-            Swal.fire({ title: 'Lista de Clientes', html: `<div class="max-h-96 overflow-y-auto">${html}</div>`, showConfirmButton: false });
+            Swal.fire({ title: 'Clientes', html: `<div class="max-h-96 overflow-y-auto">${html}</div>`, showConfirmButton: false });
         }
         async function excluirUsuario(wpp) { await fetch(`${USERS_URL}/${wpp}.json`, { method: 'DELETE' }); document.getElementById(`u-${wpp}`).remove(); }
     </script>
