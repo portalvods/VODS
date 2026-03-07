@@ -10,25 +10,26 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
         :root { --bg-dark: #020617; --card-dark: #0f172a; --accent: #3b82f6; }
-        body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: #f1f5f9; margin: 0; min-height: 100vh; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: #f1f5f9; margin: 0; min-height: 100vh; overflow-x: hidden; }
+        
         .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
         .input-dark { background: #1e293b; border: 1px solid #334155; color: white; transition: all 0.3s; }
         .input-dark:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); outline: none; }
         
+        /* STATUS BADGES */
         .status-badge { font-size: 10px; font-weight: 800; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; }
         .status-pendente { background: #78350f; color: #fef3c7; }
         .status-analise { background: #1e40af; color: #dbeafe; }
         .status-concluido { background: #064e3b; color: #dcfce7; }
         .status-rejeitado { background: #7f1d1d; color: #fee2e2; }
 
+        /* ANIMAÇÕES */
         .card-animate { animation: fadeInUp 0.5s ease-out forwards; }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         
         .exit-animate { animation: slideOut 0.4s ease forwards; pointer-events: none; }
         @keyframes slideOut { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(0.8); max-height: 0; padding: 0; margin: 0; } }
 
-        .urgente { border: 2px solid #ef4444 !important; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
         .swal2-popup { background: #0f172a !important; color: #fff !important; border: 1px solid #334155 !important; }
     </style>
 </head>
@@ -41,25 +42,15 @@
         const API_KEY_TMDB = '9e64130cb366f23a3398f4f7c8e982c0';
         const ADMIN_WPP = '91988478336'; 
 
-        const WHATSAPP_API_URL = 'SUA_URL_DA_API_AQUI'; 
-        const WHATSAPP_TOKEN = 'SEU_TOKEN_AQUI';
-
         let currentUserLogado = null;
-        let searchMode = 'movie';
-        let tempWppForOTP = null;
+        let searchMode = 'movie'; 
+        let currentItem = {};
 
-        async function dispararWhatsApp(numero, codigo) {
-            const msg = `Seu código de acesso Portal VOD: ${codigo}`;
-            try {
-                await fetch(WHATSAPP_API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${WHATSAPP_TOKEN}` },
-                    body: JSON.stringify({ number: numero, message: msg })
-                });
-            } catch (e) {
-                window.open(`https://api.whatsapp.com/send?phone=55${numero}&text=${encodeURIComponent(msg)}`, '_blank');
-            }
-        }
+        // Iniciar App
+        window.onload = () => {
+            const saved = localStorage.getItem('vod_user');
+            if(saved) { currentUserLogado = JSON.parse(saved); ativarModoLogado(); }
+        };
     </script>
 
     <header id="main-header" class="container mx-auto flex flex-col md:flex-row justify-between items-center p-6 mb-8 gap-6 hidden">
@@ -75,66 +66,30 @@
     <main id="page-auth" class="container mx-auto max-w-md mt-20 p-4">
         <div class="glass p-10 rounded-[40px] text-center">
             <h1 class="text-4xl font-black text-blue-500 mb-8">PORTAL<span class="text-white">VOD</span></h1>
-            
             <div id="form-login" class="space-y-4">
                 <input type="text" id="loginUser" placeholder="Usuário ou WhatsApp" class="w-full input-dark p-4 rounded-2xl">
                 <input type="password" id="loginPass" placeholder="Sua Senha" class="w-full input-dark p-4 rounded-2xl">
                 <button onclick="loginApp()" class="w-full py-4 bg-blue-600 rounded-2xl font-black shadow-lg">ENTRAR</button>
-                <div class="flex justify-between mt-4 px-2">
-                    <button onclick="toggleAuthMode('forgot')" class="text-sm text-slate-400">Esqueci a senha?</button>
-                    <button onclick="toggleAuthMode('register')" class="text-sm text-blue-400 font-bold">Criar conta</button>
-                </div>
+                <button onclick="toggleAuthMode('register')" class="text-sm text-blue-400 font-bold mt-4 block mx-auto">Criar conta</button>
             </div>
-
             <div id="form-register" class="space-y-4 hidden">
                 <input type="text" id="regUser" placeholder="Username" class="w-full input-dark p-4 rounded-2xl">
                 <input type="text" id="regName" placeholder="Nome Completo" class="w-full input-dark p-4 rounded-2xl">
                 <input type="tel" id="regWpp" placeholder="DDD + Número" class="w-full input-dark p-4 rounded-2xl">
                 <input type="password" id="regPass" placeholder="Senha" class="w-full input-dark p-4 rounded-2xl">
-                <button onclick="registerApp()" class="w-full py-4 bg-green-600 rounded-2xl font-black transition">CADASTRAR E VALIDAR</button>
+                <button onclick="registerApp()" class="w-full py-4 bg-green-600 rounded-2xl font-black">CADASTRAR</button>
                 <button onclick="toggleAuthMode('login')" class="text-sm text-slate-400 mt-4 block mx-auto">Voltar</button>
             </div>
-
-            <div id="form-forgot" class="space-y-4 hidden">
-                <input type="tel" id="forgotWpp" placeholder="Digite seu WhatsApp" class="w-full input-dark p-4 rounded-2xl">
-                <button onclick="forgotPassword()" class="w-full py-4 bg-yellow-600 rounded-2xl font-black text-black">ENVIAR CÓDIGO</button>
-                <button onclick="toggleAuthMode('login')" class="text-sm text-slate-400 mt-4 block mx-auto">Voltar</button>
-            </div>
-        </div>
-    </main>
-
-    <main id="page-otp" class="container mx-auto max-w-md mt-20 p-4 hidden">
-        <div class="glass p-10 rounded-[40px] text-center">
-            <i class="fab fa-whatsapp text-6xl text-green-500 mb-6"></i>
-            <h2 class="text-2xl font-black mb-2">Valide seu WhatsApp</h2>
-            <p class="text-xs text-slate-400 mb-6">Insira o código enviado para criar sua conta.</p>
-            <input type="text" id="otpCode" placeholder="000000" class="w-full input-dark p-4 rounded-2xl text-center text-3xl font-black tracking-widest">
-            <button onclick="verifyOTP()" class="w-full py-4 bg-green-600 rounded-2xl font-black mt-6 transition">CONCLUIR CADASTRO</button>
-        </div>
-    </main>
-
-    <main id="page-admin" class="container mx-auto max-w-7xl p-6 hidden">
-        <div class="flex justify-between items-center mb-8">
-            <h2 class="text-3xl font-black text-blue-500">ADMINISTRAÇÃO</h2>
-            <button onclick="verTodosUsuarios()" class="bg-blue-600 px-6 py-2 rounded-xl text-xs font-bold">CLIENTES</button>
-        </div>
-        <div class="glass rounded-3xl overflow-hidden">
-            <table class="w-full text-left">
-                <thead class="bg-slate-900/50 text-slate-500 text-[10px] font-black uppercase">
-                    <tr><th class="p-6">Conteúdo</th><th class="p-6">Solicitante</th><th class="p-6">Data/Hora</th><th class="p-6">Status</th><th class="p-6 text-center">Ação</th></tr>
-                </thead>
-                <tbody id="admin-table" class="divide-y divide-white/5"></tbody>
-            </table>
         </div>
     </main>
 
     <main id="page-cliente" class="container mx-auto max-w-6xl p-6 hidden">
         <div class="glass p-8 rounded-[32px] mb-8">
             <div class="flex gap-4 mb-6">
-                <button onclick="setSearchMode('movie')" id="btn-movie" class="px-6 py-2 rounded-full text-xs font-black bg-blue-600">FILMES/SÉRIES</button>
-                <button onclick="setSearchMode('tv')" id="btn-tv" class="px-6 py-2 rounded-full text-xs font-black bg-slate-800">CANAIS TV</button>
+                <button onclick="setSearchMode('movie')" id="btn-movie" class="px-6 py-2 rounded-full text-xs font-black bg-blue-600 transition-all">FILMES/SÉRIES</button>
+                <button onclick="setSearchMode('tv')" id="btn-tv" class="px-6 py-2 rounded-full text-xs font-black bg-slate-800 transition-all">CANAIS DE TV</button>
             </div>
-            <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="Pesquisar..." class="w-full input-dark p-5 rounded-2xl">
+            <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="Pesquisar conteúdo..." class="w-full input-dark p-5 rounded-2xl">
         </div>
         <div id="grid-content" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6"></div>
     </main>
@@ -144,96 +99,91 @@
         <div id="track-results" class="space-y-4"></div>
     </main>
 
+    <main id="page-admin" class="container mx-auto max-w-7xl p-6 hidden">
+        <div class="grid lg:grid-cols-4 gap-8">
+            <div class="lg:col-span-1 space-y-6">
+                <div class="glass p-6 rounded-3xl">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-sm font-black text-blue-400 uppercase">Top 10 Pedidos</h3>
+                        <button onclick="zerarRanking()" class="text-[10px] bg-red-900/30 text-red-400 px-2 py-1 rounded hover:bg-red-600 hover:text-white transition">Zerar</button>
+                    </div>
+                    <div id="ranking-list" class="space-y-2"></div>
+                </div>
+                <button onclick="abrirModalClientes()" class="w-full bg-blue-600 py-3 rounded-2xl font-black text-xs">LISTA DE CLIENTES</button>
+            </div>
+
+            <div class="lg:col-span-3">
+                <div class="glass rounded-3xl overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-900/50 text-slate-500 text-[10px] font-black uppercase">
+                            <tr>
+                                <th class="p-4">Conteúdo</th>
+                                <th class="p-4">Cliente / WhatsApp</th>
+                                <th class="p-4">Data / Hora</th>
+                                <th class="p-4">Status</th>
+                                <th class="p-4 text-center">Ação</th>
+                            </tr>
+                        </thead>
+                        <tbody id="admin-table" class="divide-y divide-white/5"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
     <div id="modal" class="fixed inset-0 bg-black/90 hidden flex items-center justify-center p-4 z-50">
         <div class="glass rounded-[40px] max-w-md w-full p-10 text-center">
             <div id="modal-poster" class="w-32 h-44 bg-slate-800 rounded-3xl mb-6 mx-auto overflow-hidden"></div>
             <h3 class="text-2xl font-black mb-6" id="modalTitle"></h3>
             <select id="requestType" class="w-full input-dark p-4 rounded-2xl mb-4">
-                <option value="Adição">🎬 Solicitar Adição</option>
-                <option value="Conserto">🛠️ Relatar Problema</option>
+                <option value="🍿 Solicitar adição">🍿 Solicitar adição</option>
+                <option value="🎬 Solicitar atualização">🎬 Solicitar atualização</option>
+                <option value="👨🏻‍🔧 Relatar um problema">👨🏻‍🔧 Relatar um problema</option>
             </select>
-            <textarea id="userObs" placeholder="Algum detalhe?" class="w-full input-dark p-4 rounded-2xl h-24 mb-6"></textarea>
-            <button onclick="saveToFirebase()" class="w-full py-5 bg-blue-600 rounded-[24px] font-black">ENVIAR</button>
+            <textarea id="userObs" placeholder="Algum detalhe extra?" class="w-full input-dark p-4 rounded-2xl h-24 mb-6"></textarea>
+            <button onclick="saveToFirebase()" class="w-full py-5 bg-blue-600 rounded-[24px] font-black shadow-lg">ENVIAR SOLICITAÇÃO</button>
             <button onclick="closeModal()" class="mt-4 text-slate-500 block w-full">Cancelar</button>
         </div>
     </div>
 
     <script>
-        window.onload = () => {
-            const savedUser = localStorage.getItem('vod_user');
-            if(savedUser) { currentUserLogado = JSON.parse(savedUser); ativarModoLogado(); }
-        };
-
-        function toggleAuthMode(mode) {
+        // AUTH FUNCTIONS
+        function toggleAuthMode(m) {
             document.getElementById('form-login').classList.add('hidden');
             document.getElementById('form-register').classList.add('hidden');
-            document.getElementById('form-forgot').classList.add('hidden');
-            document.getElementById(`form-${mode}`).classList.remove('hidden');
+            document.getElementById(`form-${m}`).classList.remove('hidden');
         }
 
-        // CADASTRO COM VALIDAÇÃO (ÚNICA VEZ)
         async function registerApp() {
             const wpp = document.getElementById('regWpp').value.replace(/\D/g,'');
-            const codigo = Math.floor(100000 + Math.random() * 900000).toString();
             const data = { 
                 username: document.getElementById('regUser').value,
                 nome: document.getElementById('regName').value,
                 wpp: wpp,
                 senha: document.getElementById('regPass').value,
-                codigo: codigo, verificado: false 
+                verificado: true 
             };
             await fetch(`${USERS_URL}/${wpp}.json`, { method: 'PUT', body: JSON.stringify(data) });
-            dispararWhatsApp(wpp, codigo);
-            tempWppForOTP = wpp;
-            document.getElementById('page-auth').classList.add('hidden');
-            document.getElementById('page-otp').classList.remove('hidden');
+            currentUserLogado = data;
+            localStorage.setItem('vod_user', JSON.stringify(data));
+            ativarModoLogado();
         }
 
-        // LOGIN DIRETO (SEM VALIDAÇÃO SE JÁ EXISTIR)
         async function loginApp() {
             const userInp = document.getElementById('loginUser').value.trim();
             const passInp = document.getElementById('loginPass').value;
             const res = await fetch(`${USERS_URL}.json`);
             const users = await res.json() || {};
             const user = Object.values(users).find(u => (u.username === userInp || u.wpp === userInp) && u.senha === passInp);
-            
             if(user) {
                 currentUserLogado = user;
                 localStorage.setItem('vod_user', JSON.stringify(user));
                 ativarModoLogado();
-            } else { Swal.fire('Erro', 'Usuário ou senha incorretos', 'error'); }
-        }
-
-        async function verifyOTP() {
-            const code = document.getElementById('otpCode').value;
-            const res = await fetch(`${USERS_URL}/${tempWppForOTP}.json`);
-            const user = await res.json();
-            if(user && user.codigo === code) {
-                await fetch(`${USERS_URL}/${tempWppForOTP}.json`, { method: 'PATCH', body: JSON.stringify({ verificado: true }) });
-                currentUserLogado = user;
-                localStorage.setItem('vod_user', JSON.stringify(user));
-                ativarModoLogado();
-            } else { Swal.fire('Erro', 'Código incorreto', 'error'); }
-        }
-
-        async function forgotPassword() {
-            const wpp = document.getElementById('forgotWpp').value.replace(/\D/g,'');
-            const res = await fetch(`${USERS_URL}/${wpp}.json`);
-            const user = await res.json();
-            if(user) {
-                const novoCodigo = Math.floor(100000 + Math.random() * 900000).toString();
-                await fetch(`${USERS_URL}/${wpp}.json`, { method: 'PATCH', body: JSON.stringify({ codigo: novoCodigo }) });
-                dispararWhatsApp(wpp, novoCodigo);
-                Swal.fire('Enviado', 'Código enviado para o WhatsApp para resetar sua conta.', 'success');
-                tempWppForOTP = wpp;
-                document.getElementById('page-auth').classList.add('hidden');
-                document.getElementById('page-otp').classList.remove('hidden');
-            } else { Swal.fire('Erro', 'Número não encontrado', 'error'); }
+            } else { Swal.fire('Erro', 'Credenciais inválidas', 'error'); }
         }
 
         function ativarModoLogado() {
             document.getElementById('page-auth').classList.add('hidden');
-            document.getElementById('page-otp').classList.add('hidden');
             document.getElementById('main-header').classList.remove('hidden');
             if(currentUserLogado.wpp === ADMIN_WPP) document.getElementById('btn-nav-admin').classList.remove('hidden');
             showPage('cliente');
@@ -246,19 +196,30 @@
             if(p === 'status') trackRequests();
         }
 
+        // BUSCA TMDB
         async function handleSearch() {
             const q = document.getElementById('searchInput').value;
             if(q.length < 3) return;
-            const res = await fetch(`https://api.themoviedb.org/3/search/${searchMode === 'movie' ? 'multi' : 'tv'}?api_key=${API_KEY_TMDB}&language=pt-BR&query=${q}`);
+            const type = searchMode === 'movie' ? 'multi' : 'tv';
+            const res = await fetch(`https://api.themoviedb.org/3/search/${type}?api_key=${API_KEY_TMDB}&language=pt-BR&query=${q}`);
             const data = await res.json();
-            document.getElementById('grid-content').innerHTML = data.results.filter(i => i.poster_path).map(i => `
+            document.getElementById('grid-content').innerHTML = data.results.filter(i => i.poster_path || i.profile_path).map(i => `
                 <div class="glass p-4 rounded-3xl hover:scale-105 transition card-animate">
-                    <img src="https://image.tmdb.org/t/p/w500${i.poster_path}" class="w-full h-56 object-cover rounded-2xl mb-4">
+                    <img src="https://image.tmdb.org/t/p/w500${i.poster_path || i.profile_path}" class="w-full h-56 object-cover rounded-2xl mb-4">
                     <h4 class="font-bold text-xs truncate mb-4">${i.title || i.name}</h4>
-                    <button onclick="openModal('${(i.title || i.name).replace(/'/g, "")}', 'https://image.tmdb.org/t/p/w500${i.poster_path}')" class="w-full bg-blue-600/20 text-blue-400 py-2 rounded-xl text-[10px] font-black uppercase">Pedir</button>
+                    <button onclick="openModal('${(i.title || i.name).replace(/'/g, "")}', 'https://image.tmdb.org/t/p/w500${i.poster_path || i.profile_path}')" class="w-full bg-blue-600/20 text-blue-400 py-2 rounded-xl text-[10px] font-black uppercase">Pedir</button>
                 </div>`).join('');
         }
 
+        function setSearchMode(m) {
+            searchMode = m;
+            document.getElementById('btn-movie').className = m === 'movie' ? 'px-6 py-2 rounded-full text-xs font-black bg-blue-600' : 'px-6 py-2 rounded-full text-xs font-black bg-slate-800';
+            document.getElementById('btn-tv').className = m === 'tv' ? 'px-6 py-2 rounded-full text-xs font-black bg-blue-600' : 'px-6 py-2 rounded-full text-xs font-black bg-slate-800';
+            document.getElementById('grid-content').innerHTML = "";
+            document.getElementById('searchInput').value = "";
+        }
+
+        // PEDIDOS
         async function saveToFirebase() {
             const data = { 
                 ...currentItem, user: currentUserLogado.nome, wpp: currentUserLogado.wpp, 
@@ -267,37 +228,65 @@
                 status: 'Pendente', date: new Date().toLocaleDateString('pt-BR'), hour: new Date().toLocaleTimeString('pt-BR')
             };
             await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify(data) });
-            Swal.fire('Sucesso', 'Pedido enviado!', 'success');
+            Swal.fire('Enviado!', 'Sua solicitação foi processada.', 'success');
             closeModal();
         }
 
+        async function trackRequests() {
+            const res = await fetch(DATABASE_URL);
+            const data = await res.json() || {};
+            const list = Object.values(data).filter(p => p.wpp === currentUserLogado.wpp).reverse();
+            document.getElementById('track-results').innerHTML = list.map(p => `
+                <div class="glass p-5 rounded-3xl flex items-center gap-4 card-animate">
+                    <img src="${p.img}" class="w-14 h-20 rounded-xl object-cover shadow-lg">
+                    <div class="flex-1">
+                        <h4 class="font-bold text-white">${p.name}</h4>
+                        <p class="text-[10px] text-slate-400 mb-2">${p.type}</p>
+                        <span class="status-badge status-${p.status.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")}">${p.status}</span>
+                    </div>
+                </div>`).join('');
+        }
+
+        // ADMIN FUNCTIONS
         async function loadAdmin() {
             const res = await fetch(DATABASE_URL);
             const data = await res.json() || {};
             const table = document.getElementById('admin-table');
+            const rankingList = document.getElementById('ranking-list');
+            
+            let ranking = {};
             table.innerHTML = Object.keys(data).reverse().map(id => {
                 const p = data[id];
+                ranking[p.name] = (ranking[p.name] || 0) + 1;
                 return `
                 <tr id="row-${id}" class="hover:bg-white/5 transition">
-                    <td class="p-6 flex gap-4 items-center">
-                        <img src="${p.img}" class="w-10 h-14 rounded object-cover shadow-xl ${p.type==='Conserto'?'urgente':''}">
-                        <div class="text-xs font-bold">${p.name}</div>
+                    <td class="p-4 flex gap-4 items-center">
+                        <img src="${p.img}" class="w-10 h-14 rounded object-cover">
+                        <div class="text-[11px] font-bold">${p.name}</div>
                     </td>
-                    <td class="p-6 text-[10px] text-slate-400">${p.user}<br>${p.wpp}</td>
-                    <td class="p-6 text-[10px] text-slate-400">${p.date}<br>${p.hour}</td>
-                    <td class="p-6">
-                        <select onchange="updateStatus('${id}', this.value)" class="bg-slate-800 text-[9px] p-2 rounded-lg outline-none">
+                    <td class="p-4 text-[10px] text-slate-300"><b>${p.user}</b><br><span class="text-slate-500">${p.wpp}</span></td>
+                    <td class="p-4 text-[10px] text-slate-400">${p.date}<br>${p.hour}</td>
+                    <td class="p-4">
+                        <select onchange="updateStatus('${id}', this.value)" class="bg-slate-800 text-[10px] p-2 rounded-lg outline-none border-none">
                             <option value="Pendente" ${p.status==='Pendente'?'selected':''}>Pendente</option>
                             <option value="Análise" ${p.status==='Análise'?'selected':''}>Análise</option>
                             <option value="Concluído" ${p.status==='Concluído'?'selected':''}>Concluído</option>
                             <option value="Rejeitado" ${p.status==='Rejeitado'?'selected':''}>Rejeitado</option>
                         </select>
                     </td>
-                    <td class="p-6 text-center">
-                        <button onclick="deletePedido('${id}')" class="text-slate-600 hover:text-red-500 transition-all transform hover:scale-125"><i class="fas fa-trash"></i></button>
+                    <td class="p-4 text-center">
+                        <button onclick="deletePedido('${id}')" class="text-slate-600 hover:text-red-500 transition transform hover:scale-125"><i class="fas fa-trash"></i></button>
                     </td>
                 </tr>`;
             }).join('');
+
+            // Ranking top 10
+            const sorted = Object.entries(ranking).sort((a,b) => b[1] - a[1]).slice(0, 10);
+            rankingList.innerHTML = sorted.map(([name, count]) => `
+                <div class="flex justify-between items-center text-[11px] bg-white/5 p-3 rounded-xl border border-white/5">
+                    <span class="truncate pr-2">${name}</span>
+                    <b class="text-blue-400">${count}x</b>
+                </div>`).join('');
         }
 
         async function updateStatus(id, status) {
@@ -313,23 +302,60 @@
             }, 400);
         }
 
-        async function trackRequests() {
-            const res = await fetch(DATABASE_URL);
-            const data = await res.json() || {};
-            document.getElementById('track-results').innerHTML = Object.values(data).filter(p => p.wpp === currentUserLogado.wpp).reverse().map(p => `
-                <div class="glass p-4 rounded-3xl flex items-center gap-4">
-                    <img src="${p.img}" class="w-12 h-16 rounded-lg object-cover">
-                    <div>
-                        <h4 class="font-bold text-sm text-white">${p.name}</h4>
-                        <span class="status-badge status-${p.status.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")}">${p.status}</span>
-                    </div>
-                </div>`).join('');
+        async function zerarRanking() {
+            const confirm = await Swal.fire({
+                title: 'Zerar Top Pedidos?',
+                text: "Isso apagará TODOS os pedidos do banco de dados!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sim, zerar tudo!'
+            });
+            if(confirm.isConfirmed) {
+                await fetch(DATABASE_URL, { method: 'DELETE' });
+                loadAdmin();
+            }
         }
 
-        function logoutApp() { localStorage.removeItem('vod_user'); location.reload(); }
-        function openModal(name, img) { currentItem = { name, img }; document.getElementById('modalTitle').innerText = name; document.getElementById('modal-poster').innerHTML = `<img src="${img}" class="w-full h-full object-cover">`; document.getElementById('modal').classList.remove('hidden'); }
+        async function abrirModalClientes() {
+            const res = await fetch(`${USERS_URL}.json`);
+            const users = await res.json() || {};
+            let html = Object.keys(users).map(wpp => {
+                const u = users[wpp];
+                return `
+                <div id="user-row-${wpp}" class="flex justify-between items-center p-3 border-b border-white/5 hover:bg-white/5">
+                    <div class="text-left">
+                        <p class="text-sm font-bold text-white">${u.nome}</p>
+                        <p class="text-xs text-slate-500">${u.wpp}</p>
+                    </div>
+                    <button onclick="excluirUsuario('${wpp}')" class="text-red-500 p-2"><i class="fas fa-user-minus"></i></button>
+                </div>`;
+            }).join('');
+
+            Swal.fire({
+                title: 'Clientes Cadastrados',
+                html: `<div class="max-h-96 overflow-y-auto">${html}</div>`,
+                showConfirmButton: false
+            });
+        }
+
+        async function excluirUsuario(wpp) {
+            const row = document.getElementById(`user-row-${wpp}`);
+            row.classList.add('exit-animate');
+            setTimeout(async () => {
+                await fetch(`${USERS_URL}/${wpp}.json`, { method: 'DELETE' });
+                abrirModalClientes(); // Atualiza a lista
+            }, 400);
+        }
+
+        // AUX
+        function openModal(name, img) { 
+            currentItem = { name, img }; 
+            document.getElementById('modalTitle').innerText = name; 
+            document.getElementById('modal-poster').innerHTML = `<img src="${img}" class="w-full h-full object-cover">`; 
+            document.getElementById('modal').classList.remove('hidden'); 
+        }
         function closeModal() { document.getElementById('modal').classList.add('hidden'); }
-        function setSearchMode(m) { searchMode = m; document.getElementById('btn-movie').className = m === 'movie' ? 'px-6 py-2 rounded-full text-xs font-black bg-blue-600' : 'px-6 py-2 rounded-full text-xs font-black bg-slate-800'; }
+        function logoutApp() { localStorage.removeItem('vod_user'); location.reload(); }
     </script>
 </body>
 </html>
