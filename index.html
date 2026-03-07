@@ -13,15 +13,15 @@
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: #f1f5f9; margin: 0; min-height: 100vh; }
         .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
         .input-dark { background: #1e293b; border: 1px solid #334155; color: white; transition: all 0.3s; }
-        .input-dark:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); outline: none; }
         
-        .status-badge { font-size: 10px; font-weight: 800; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; display: inline-block; margin-top: 5px; }
-        .status-pendente { background: #78350f !important; color: #fef3c7 !important; }
-        .status-analise { background: #1e40af !important; color: #dbeafe !important; }
-        .status-concluido { background: #064e3b !important; color: #dcfce7 !important; }
-        .status-rejeitado { background: #7f1d1d !important; color: #fee2e2 !important; }
+        /* CORES DOS STATUS - AJUSTADAS CONFORME PEDIDO */
+        .status-badge { font-size: 10px; font-weight: 800; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; display: inline-block; }
+        .status-pendente { background: #78350f; color: #fef3c7; } /* Marrom/Laranja */
+        .status-analise { background: #1e40af; color: #dbeafe; } /* Azul */
+        .status-concluido { background: #064e3b; color: #dcfce7; } /* Verde */
+        .status-rejeitado { background: #7f1d1d; color: #fee2e2; } /* Vermelho */
 
-        .btn-filter { padding: 8px 16px; border-radius: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; transition: all 0.2s; border: 1px solid transparent; background: #334155; color: white; cursor: pointer; }
+        .btn-filter { padding: 8px 16px; border-radius: 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; transition: 0.2s; border: 1px solid transparent; background: #334155; }
         .active-filter { border: 2px solid white !important; background: var(--accent) !important; }
         .swal2-popup { background: #0f172a !important; color: #fff !important; border: 1px solid #334155 !important; }
     </style>
@@ -42,14 +42,15 @@
         let searchMode = 'movie'; 
         let currentItem = {};
         let tempWppForOTP = null;
-        let isPasswordReset = false; // Controle para saber se é reset ou cadastro
+        let isPasswordReset = false;
         let currentFilter = 'Todos';
 
         window.onload = () => {
             const saved = localStorage.getItem('vod_user');
+            const lastPage = sessionStorage.getItem('last_page'); // Persistência de página
             if(saved) { 
                 currentUserLogado = JSON.parse(saved); 
-                ativarModoLogado(); 
+                ativarModoLogado(lastPage || 'cliente'); 
             }
         };
 
@@ -57,16 +58,17 @@
             const numLimpo = numero.replace(/\D/g, '');
             const finalNum = numLimpo.startsWith('55') ? numLimpo : '55' + numLimpo;
             try {
-                await fetch(WHATSAPP_API_URL, {
+                const response = await fetch(WHATSAPP_API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${WHATSAPP_TOKEN}` },
                     body: JSON.stringify({ number: finalNum, message: mensagem })
                 });
-            } catch (e) { console.error("Erro WPP:", e); }
+                return response.ok;
+            } catch (e) { return false; }
         }
     </script>
 
-    <header id="main-header" class="container mx-auto flex flex-col md:flex-row justify-between items-center p-6 mb-8 gap-6 hidden">
+    <header id="main-header" class="container mx-auto flex flex-col md:flex-row justify-between items-center p-6 mb-4 gap-6 hidden">
         <h1 class="text-3xl font-black text-blue-500">PORTAL<span class="text-white">VOD</span></h1>
         <nav class="flex gap-2 glass p-2 rounded-2xl">
             <button onclick="showPage('cliente')" class="px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition">Início</button>
@@ -75,6 +77,31 @@
             <button onclick="logoutApp()" class="px-4 py-2 rounded-xl text-xs font-bold text-red-400">Sair</button>
         </nav>
     </header>
+
+    <div id="admin-stats-panel" class="container mx-auto px-6 mb-8 hidden">
+        <div class="glass p-6 rounded-[35px] grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
+            <div class="p-2">
+                <p class="text-[10px] font-black text-slate-500 uppercase">Total</p>
+                <p id="stat-total" class="text-2xl font-black text-white">0</p>
+            </div>
+            <div class="p-2 border-l border-white/5">
+                <p class="text-[10px] font-black text-amber-500 uppercase">Pendentes</p>
+                <p id="stat-pendente" class="text-2xl font-black text-white">0</p>
+            </div>
+            <div class="p-2 border-l border-white/5">
+                <p class="text-[10px] font-black text-blue-500 uppercase">Análise</p>
+                <p id="stat-analise" class="text-2xl font-black text-white">0</p>
+            </div>
+            <div class="p-2 border-l border-white/5">
+                <p class="text-[10px] font-black text-green-500 uppercase">Concluídos</p>
+                <p id="stat-concluido" class="text-2xl font-black text-white">0</p>
+            </div>
+            <div class="p-2 border-l border-white/5">
+                <p class="text-[10px] font-black text-red-500 uppercase">Rejeitados</p>
+                <p id="stat-rejeitado" class="text-2xl font-black text-white">0</p>
+            </div>
+        </div>
+    </div>
 
     <main id="page-auth" class="container mx-auto max-w-md mt-16 p-4">
         <div class="glass p-10 rounded-[40px] text-center border border-white/10">
@@ -174,10 +201,8 @@
                     <option value="🎬 Solicitar atualização">🎬 Solicitar atualização</option>
                     <option value="👨🏻‍🔧 Relatar um problema">👨🏻‍🔧 Relatar um problema</option>
                 </select>
-
                 <label class="font-bold text-slate-500 uppercase ml-2">Anexar Print (Opcional)</label>
                 <input type="file" id="userPhoto" accept="image/*" class="w-full input-dark p-2 rounded-xl">
-                
                 <textarea id="userObs" placeholder="Algum detalhe extra?" class="w-full input-dark p-4 rounded-2xl h-24"></textarea>
             </div>
 
@@ -187,64 +212,7 @@
     </div>
 
     <script>
-        function toggleAuthMode(m) {
-            document.getElementById('form-login').classList.add('hidden');
-            document.getElementById('form-register').classList.add('hidden');
-            document.getElementById('form-forgot').classList.add('hidden');
-            document.getElementById(`form-${m}`).classList.remove('hidden');
-        }
-
-        async function registerApp() {
-            isPasswordReset = false;
-            const wpp = document.getElementById('regWpp').value.replace(/\D/g,'');
-            const code = Math.floor(100000 + Math.random() * 900000).toString();
-            const data = { 
-                username: document.getElementById('regUser').value,
-                nome: document.getElementById('regName').value,
-                wpp: wpp,
-                senha: document.getElementById('regPass').value,
-                codigo: code,
-                verificado: false 
-            };
-            await fetch(`${USERS_URL}/${wpp}.json`, { method: 'PUT', body: JSON.stringify(data) });
-            tempWppForOTP = wpp;
-            await dispararWhatsApp(wpp, `Seu código Portal VOD: ${code}`);
-            document.getElementById('page-auth').classList.add('hidden');
-            document.getElementById('page-otp').classList.remove('hidden');
-        }
-
-        async function verifyOTP() {
-            const codeInp = document.getElementById('otpCode').value;
-            const res = await fetch(`${USERS_URL}/${tempWppForOTP}.json`);
-            const user = await res.json();
-            
-            if(user && user.codigo === codeInp) {
-                if(isPasswordReset) {
-                    // Fluxo de Reset de Senha
-                    const { value: newPass } = await Swal.fire({
-                        title: 'Nova Senha',
-                        input: 'password',
-                        inputLabel: 'Digite sua nova senha',
-                        inputPlaceholder: 'No mínimo 4 dígitos',
-                        showCancelButton: false
-                    });
-                    if(newPass) {
-                        await fetch(`${USERS_URL}/${tempWppForOTP}.json`, { method: 'PATCH', body: JSON.stringify({ senha: newPass, verificado: true }) });
-                        Swal.fire('Sucesso!', 'Senha alterada. Faça login.', 'success');
-                        location.reload();
-                    }
-                } else {
-                    // Fluxo de Cadastro Normal
-                    await fetch(`${USERS_URL}/${tempWppForOTP}.json`, { method: 'PATCH', body: JSON.stringify({ verificado: true }) });
-                    currentUserLogado = user;
-                    localStorage.setItem('vod_user', JSON.stringify(user));
-                    ativarModoLogado();
-                }
-            } else { 
-                Swal.fire('Erro', 'Código Inválido', 'error'); 
-            }
-        }
-
+        // --- FUNÇÕES DE RECUPERAÇÃO CORRIGIDAS ---
         async function forgotPassword() {
             const wpp = document.getElementById('forgotWpp').value.replace(/\D/g,'');
             if(!wpp) return Swal.fire('Erro', 'Digite seu WhatsApp', 'warning');
@@ -256,62 +224,77 @@
                 isPasswordReset = true;
                 tempWppForOTP = wpp;
                 const code = Math.floor(100000 + Math.random() * 900000).toString();
-                await fetch(`${USERS_URL}/${wpp}.json`, { method: 'PATCH', body: JSON.stringify({ codigo: code }) });
-                await dispararWhatsApp(wpp, `Recuperação Portal VOD. Seu código: ${code}`);
                 
-                document.getElementById('page-auth').classList.add('hidden');
-                document.getElementById('page-otp').classList.remove('hidden');
+                // Atualiza o código no Firebase primeiro
+                await fetch(`${USERS_URL}/${wpp}.json`, { method: 'PATCH', body: JSON.stringify({ codigo: code }) });
+                
+                // Tenta disparar o WhatsApp
+                const sent = await dispararWhatsApp(wpp, `Recuperação Portal VOD. Seu código: ${code}`);
+                
+                if(sent) {
+                    document.getElementById('page-auth').classList.add('hidden');
+                    document.getElementById('page-otp').classList.remove('hidden');
+                } else {
+                    Swal.fire('Erro VPS', 'Não foi possível enviar o WhatsApp. Verifique sua VPS.', 'error');
+                }
             } else { 
                 Swal.fire('Erro', 'WhatsApp não cadastrado!', 'error'); 
             }
         }
 
-        async function loginApp() {
-            const userInp = document.getElementById('loginUser').value.trim();
-            const passInp = document.getElementById('loginPass').value;
-            const res = await fetch(`${USERS_URL}.json`);
-            const users = await res.json() || {};
-            const user = Object.values(users).find(u => (u.username === userInp || u.wpp === userInp) && u.senha === passInp);
-            if(user) {
-                if(!user.verificado) { 
-                    tempWppForOTP = user.wpp; 
-                    isPasswordReset = false;
-                    await reenviarOTP(); 
-                    document.getElementById('page-auth').classList.add('hidden'); 
-                    document.getElementById('page-otp').classList.remove('hidden'); 
-                    return; 
+        async function verifyOTP() {
+            const codeInp = document.getElementById('otpCode').value;
+            const res = await fetch(`${USERS_URL}/${tempWppForOTP}.json`);
+            const user = await res.json();
+            
+            if(user && user.codigo === codeInp) {
+                if(isPasswordReset) {
+                    const { value: newPass } = await Swal.fire({
+                        title: 'Nova Senha',
+                        input: 'password',
+                        inputLabel: 'Digite sua nova senha',
+                        inputPlaceholder: 'No mínimo 4 dígitos'
+                    });
+                    if(newPass) {
+                        await fetch(`${USERS_URL}/${tempWppForOTP}.json`, { method: 'PATCH', body: JSON.stringify({ senha: newPass, verificado: true }) });
+                        Swal.fire('Sucesso!', 'Senha alterada. Faça login.', 'success').then(() => location.reload());
+                    }
+                } else {
+                    await fetch(`${USERS_URL}/${tempWppForOTP}.json`, { method: 'PATCH', body: JSON.stringify({ verificado: true }) });
+                    currentUserLogado = user;
+                    localStorage.setItem('vod_user', JSON.stringify(user));
+                    ativarModoLogado();
                 }
-                currentUserLogado = user; 
-                localStorage.setItem('vod_user', JSON.stringify(user)); 
-                ativarModoLogado();
-            } else { Swal.fire('Erro', 'Dados incorretos', 'error'); }
+            } else { Swal.fire('Erro', 'Código Inválido', 'error'); }
         }
 
-        async function reenviarOTP() {
-            const code = Math.floor(100000 + Math.random() * 900000).toString();
-            await fetch(`${USERS_URL}/${tempWppForOTP}.json`, { method: 'PATCH', body: JSON.stringify({ codigo: code }) });
-            await dispararWhatsApp(tempWppForOTP, `Seu código Portal VOD: ${code}`);
-            Swal.fire({ icon: 'success', title: 'Código reenviado!', toast: true, position: 'top', showConfirmButton: false, timer: 2000 });
-        }
-
-        // --- RESTANTE DAS FUNÇÕES (ADMIN/CLIENTE) MANTIDAS IGUAIS ---
+        // --- LÓGICA DE ADMIN E ESTATÍSTICAS ---
         async function loadAdmin() {
             const res = await fetch(DATABASE_URL);
             const data = await res.json() || {};
             const table = document.getElementById('admin-table');
             const rankingList = document.getElementById('ranking-list');
+            
             let ranking = {};
+            let stats = { total: 0, pendente: 0, analise: 0, concluido: 0, rejeitado: 0 };
 
-            table.innerHTML = Object.keys(data).reverse().filter(id => currentFilter === 'Todos' || data[id].status === currentFilter).map(id => {
+            table.innerHTML = Object.keys(data).reverse().filter(id => {
+                const p = data[id];
+                stats.total++;
+                const statusNormalizado = p.status.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                if(statusNormalizado === 'pendente') stats.pendente++;
+                if(statusNormalizado === 'analise') stats.analise++;
+                if(statusNormalizado === 'concluido') stats.concluido++;
+                if(statusNormalizado === 'rejeitado') stats.rejeitado++;
+
+                return currentFilter === 'Todos' || p.status === currentFilter;
+            }).map(id => {
                 const p = data[id];
                 ranking[p.name] = (ranking[p.name] || 0) + 1;
                 return `<tr>
                     <td class="p-4 flex items-center gap-3">
                         <img src="${p.img}" class="w-10 h-14 rounded-lg object-cover">
-                        <div class="text-[11px] font-bold">
-                            ${p.name}<br>
-                            <span class="text-[8px] text-blue-400">${p.type || ''}</span>
-                        </div>
+                        <div class="text-[11px] font-bold">${p.name}<br><span class="text-[8px] text-blue-400">${p.type || ''}</span></div>
                     </td>
                     <td class="p-4 text-[10px] text-slate-400 font-bold">${p.user}<br>${p.wpp}</td>
                     <td class="p-4">
@@ -323,57 +306,24 @@
                         </select>
                     </td>
                     <td class="p-4 text-center">
-                        ${p.photo ? `<button onclick="Swal.fire({imageUrl: '${p.photo}', background: '#0f172a'})" class="text-blue-500 mr-2"><i class="fas fa-image"></i></button>` : ''}
                         <button onclick="deletePedido('${id}')" class="text-slate-500 hover:text-red-500"><i class="fas fa-trash"></i></button>
                     </td>
                 </tr>`;
             }).join('');
 
+            // Atualiza Painel de Estatísticas
+            document.getElementById('stat-total').innerText = stats.total;
+            document.getElementById('stat-pendente').innerText = stats.pendente;
+            document.getElementById('stat-analise').innerText = stats.analise;
+            document.getElementById('stat-concluido').innerText = stats.concluido;
+            document.getElementById('stat-rejeitado').innerText = stats.rejeitado;
+
             const sorted = Object.entries(ranking).sort((a,b) => b[1] - a[1]).slice(0, 10);
             rankingList.innerHTML = sorted.map(([name, count]) => `
-                <div class="flex justify-between items-center bg-white/5 p-3 rounded-xl border border-white/5">
+                <div class="flex justify-between items-center bg-white/5 p-2 rounded-xl border border-white/5">
                     <span class="text-[10px] font-bold truncate pr-2">${name}</span>
                     <span class="text-blue-500 font-black text-xs">${count}x</span>
                 </div>`).join('');
-        }
-
-        async function zerarRanking() {
-            const confirm = await Swal.fire({ title: 'Zerar todos os pedidos?', icon: 'warning', showCancelButton: true });
-            if(confirm.isConfirmed) { await fetch(DATABASE_URL, { method: 'DELETE' }); loadAdmin(); }
-        }
-
-        async function abrirModalClientes() {
-            const res = await fetch(`${USERS_URL}.json`);
-            const users = await res.json() || {};
-            let html = Object.keys(users).map(wpp => `
-                <div id="u-${wpp}" class="flex justify-between items-center p-3 border-b border-white/5">
-                    <div class="text-left text-white"><p class="text-sm font-bold">${users[wpp].nome}</p><p class="text-xs text-slate-500">${wpp}</p></div>
-                    <button onclick="excluirUsuario('${wpp}')" class="text-red-500"><i class="fas fa-trash"></i></button>
-                </div>`).join('');
-            Swal.fire({ title: 'Lista de Clientes', html: `<div class="max-h-96 overflow-y-auto">${html}</div>`, showConfirmButton: false });
-        }
-
-        async function excluirUsuario(wpp) {
-            await fetch(`${USERS_URL}/${wpp}.json`, { method: 'DELETE' });
-            const row = document.getElementById(`u-${wpp}`);
-            if(row) row.remove();
-        }
-
-        async function saveToFirebase() {
-            const file = document.getElementById('userPhoto').files[0];
-            let photoBase64 = null;
-            if(file) { photoBase64 = await new Promise(r => { const reader = new FileReader(); reader.onload=e=>r(e.target.result); reader.readAsDataURL(file); }); }
-            const data = { 
-                ...currentItem, user: currentUserLogado.nome, wpp: currentUserLogado.wpp, 
-                status: 'Pendente', 
-                type: document.getElementById('requestType').value,
-                photo: photoBase64, 
-                obs: document.getElementById('userObs').value,
-                date: new Date().toLocaleDateString('pt-BR') 
-            };
-            await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify(data) });
-            await dispararWhatsApp(ADMIN_WPP, `🚨 NOVO PEDIDO: ${currentUserLogado.nome} quer ${currentItem.name}`);
-            Swal.fire('Enviado!', '', 'success'); closeModal();
         }
 
         async function trackRequests() {
@@ -393,6 +343,38 @@
             }).join('');
         }
 
+        function ativarModoLogado(page = 'cliente') {
+            document.getElementById('page-auth').classList.add('hidden');
+            document.getElementById('page-otp').classList.add('hidden');
+            document.getElementById('main-header').classList.remove('hidden');
+            if(currentUserLogado.wpp === ADMIN_WPP) {
+                document.getElementById('btn-nav-admin').classList.remove('hidden');
+                document.getElementById('admin-stats-panel').classList.remove('hidden');
+            }
+            showPage(page);
+        }
+
+        function showPage(p) {
+            document.querySelectorAll('main').forEach(m => m.classList.add('hidden'));
+            document.getElementById(`page-${p}`).classList.remove('hidden');
+            sessionStorage.setItem('last_page', p); // Salva a página atual para o recarregamento
+            if(p === 'admin') loadAdmin();
+            if(p === 'status') trackRequests();
+        }
+
+        // --- OUTRAS FUNÇÕES ---
+        async function loginApp() {
+            const userInp = document.getElementById('loginUser').value.trim();
+            const passInp = document.getElementById('loginPass').value;
+            const res = await fetch(`${USERS_URL}.json`);
+            const users = await res.json() || {};
+            const user = Object.values(users).find(u => (u.username === userInp || u.wpp === userInp) && u.senha === passInp);
+            if(user) {
+                if(!user.verificado) { tempWppForOTP = user.wpp; await reenviarOTP(); document.getElementById('page-auth').classList.add('hidden'); document.getElementById('page-otp').classList.remove('hidden'); return; }
+                currentUserLogado = user; localStorage.setItem('vod_user', JSON.stringify(user)); ativarModoLogado();
+            } else { Swal.fire('Erro', 'Dados incorretos', 'error'); }
+        }
+
         function filterAdmin(st) {
             currentFilter = st;
             document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active-filter'));
@@ -406,24 +388,23 @@
             loadAdmin();
         }
 
-        async function deletePedido(id) {
-            await fetch(`${DB_BASE}/pedidos/${id}.json`, { method: 'DELETE' });
-            loadAdmin();
+        function toggleAuthMode(m) {
+            document.getElementById('form-login').classList.add('hidden');
+            document.getElementById('form-register').classList.add('hidden');
+            document.getElementById('form-forgot').classList.add('hidden');
+            document.getElementById(`form-${m}`).classList.remove('hidden');
         }
 
-        function ativarModoLogado() {
+        async function registerApp() {
+            isPasswordReset = false;
+            const wpp = document.getElementById('regWpp').value.replace(/\D/g,'');
+            const code = Math.floor(100000 + Math.random() * 900000).toString();
+            const data = { username: document.getElementById('regUser').value, nome: document.getElementById('regName').value, wpp: wpp, senha: document.getElementById('regPass').value, codigo: code, verificado: false };
+            await fetch(`${USERS_URL}/${wpp}.json`, { method: 'PUT', body: JSON.stringify(data) });
+            tempWppForOTP = wpp;
+            await dispararWhatsApp(wpp, `Seu código Portal VOD: ${code}`);
             document.getElementById('page-auth').classList.add('hidden');
-            document.getElementById('page-otp').classList.add('hidden');
-            document.getElementById('main-header').classList.remove('hidden');
-            if(currentUserLogado.wpp === ADMIN_WPP) document.getElementById('btn-nav-admin').classList.remove('hidden');
-            showPage('cliente');
-        }
-
-        function showPage(p) {
-            document.querySelectorAll('main').forEach(m => m.classList.add('hidden'));
-            document.getElementById(`page-${p}`).classList.remove('hidden');
-            if(p === 'admin') loadAdmin();
-            if(p === 'status') trackRequests();
+            document.getElementById('page-otp').classList.remove('hidden');
         }
 
         async function handleSearch() {
@@ -441,13 +422,19 @@
 
         function openModal(name, img) { currentItem = { name, img }; document.getElementById('modalTitle').innerText = name; document.getElementById('modal-poster').innerHTML = `<img src="${img}" class="w-full h-full object-cover">`; document.getElementById('modal').classList.remove('hidden'); }
         function closeModal() { document.getElementById('modal').classList.add('hidden'); }
-        function logoutApp() { localStorage.removeItem('vod_user'); location.reload(); }
-        function setSearchMode(m) { 
-            searchMode = m; 
-            document.getElementById('btn-movie').className = m==='movie' ? 'px-6 py-2 rounded-full text-xs font-black bg-blue-600' : 'px-6 py-2 rounded-full text-xs font-black bg-slate-800';
-            document.getElementById('btn-tv').className = m==='tv' ? 'px-6 py-2 rounded-full text-xs font-black bg-blue-600' : 'px-6 py-2 rounded-full text-xs font-black bg-slate-800';
-            handleSearch(); 
+        async function saveToFirebase() {
+            const data = { ...currentItem, user: currentUserLogado.nome, wpp: currentUserLogado.wpp, status: 'Pendente', type: document.getElementById('requestType').value, obs: document.getElementById('userObs').value, date: new Date().toLocaleDateString('pt-BR') };
+            await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify(data) });
+            await dispararWhatsApp(ADMIN_WPP, `🚨 NOVO PEDIDO: ${currentUserLogado.nome} quer ${currentItem.name}`);
+            Swal.fire('Enviado!', '', 'success'); closeModal();
         }
+        function logoutApp() { localStorage.removeItem('vod_user'); sessionStorage.clear(); location.reload(); }
+        function setSearchMode(m) { searchMode = m; document.getElementById('btn-movie').className = m==='movie' ? 'px-6 py-2 rounded-full text-xs font-black bg-blue-600' : 'px-6 py-2 rounded-full text-xs font-black bg-slate-800'; document.getElementById('btn-tv').className = m==='tv' ? 'px-6 py-2 rounded-full text-xs font-black bg-blue-600' : 'px-6 py-2 rounded-full text-xs font-black bg-slate-800'; handleSearch(); }
+        async function deletePedido(id) { await fetch(`${DB_BASE}/pedidos/${id}.json`, { method: 'DELETE' }); loadAdmin(); }
+        async function reenviarOTP() { const code = Math.floor(100000 + Math.random() * 900000).toString(); await fetch(`${USERS_URL}/${tempWppForOTP}.json`, { method: 'PATCH', body: JSON.stringify({ codigo: code }) }); await dispararWhatsApp(tempWppForOTP, `Seu código Portal VOD: ${code}`); Swal.fire({ icon: 'success', title: 'Código reenviado!', toast: true, position: 'top', showConfirmButton: false, timer: 2000 }); }
+        async function zerarRanking() { const confirm = await Swal.fire({ title: 'Zerar todos os pedidos?', icon: 'warning', showCancelButton: true }); if(confirm.isConfirmed) { await fetch(DATABASE_URL, { method: 'DELETE' }); loadAdmin(); } }
+        async function abrirModalClientes() { const res = await fetch(`${USERS_URL}.json`); const users = await res.json() || {}; let html = Object.keys(users).map(wpp => `<div id="u-${wpp}" class="flex justify-between items-center p-3 border-b border-white/5"><div class="text-left text-white"><p class="text-sm font-bold">${users[wpp].nome}</p><p class="text-xs text-slate-500">${wpp}</p></div><button onclick="excluirUsuario('${wpp}')" class="text-red-500"><i class="fas fa-trash"></i></button></div>`).join(''); Swal.fire({ title: 'Lista de Clientes', html: `<div class="max-h-96 overflow-y-auto">${html}</div>`, showConfirmButton: false }); }
+        async function excluirUsuario(wpp) { await fetch(`${USERS_URL}/${wpp}.json`, { method: 'DELETE' }); const row = document.getElementById(`u-${wpp}`); if(row) row.remove(); }
     </script>
 </body>
 </html>
