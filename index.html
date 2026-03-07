@@ -9,66 +9,31 @@
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
+        :root { --bg-dark: #020617; --card-dark: #0f172a; --accent: #3b82f6; }
+        body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: #f1f5f9; margin: 0; min-height: 100vh; }
+        .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .input-dark { background: #1e293b; border: 1px solid #334155; color: white; transition: all 0.3s; }
+        .input-dark:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); outline: none; }
         
-        /* RESTAURANDO O DARK MODE */
-        :root { 
-            --bg-dark: #020617; 
-            --card-dark: #0f172a; 
-            --accent: #3b82f6; 
-        }
-
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: var(--bg-dark); 
-            color: #f1f5f9; 
-            margin: 0; 
-            min-height: 100vh;
-        }
-
-        /* EFEITO GLASSMOPHISM */
-        .glass { 
-            background: rgba(30, 41, 59, 0.7); 
-            backdrop-filter: blur(12px); 
-            border: 1px solid rgba(255, 255, 255, 0.05); 
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
-        }
-
-        .input-dark { 
-            background: #1e293b; 
-            border: 1px solid #334155; 
-            color: white; 
-            transition: all 0.3s; 
-        }
-
-        .input-dark:focus { 
-            border-color: var(--accent); 
-            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3); 
-            outline: none; 
-        }
-
-        /* BADGES DE STATUS */
+        /* STATUS COLORS */
         .status-badge { font-size: 10px; font-weight: 800; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; }
         .status-pendente { background: #78350f; color: #fef3c7; }
+        .status-analise { background: #1e40af; color: #dbeafe; }
         .status-concluido { background: #064e3b; color: #dcfce7; }
+        .status-rejeitado { background: #7f1d1d; color: #fee2e2; }
 
-        /* ANIMAÇÕES */
-        .card-animate { animation: fadeInUp 0.5s ease-out forwards; opacity: 0; }
-        @keyframes fadeInUp { 
-            from { opacity: 0; transform: translateY(20px); } 
-            to { opacity: 1; transform: translateY(0); } 
-        }
+        .card-animate { animation: fadeInUp 0.5s ease-out forwards; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .exit-animate { animation: slideOut 0.4s ease forwards; pointer-events: none; }
+        @keyframes slideOut { 0% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: scale(0.8); max-height: 0; padding: 0; margin: 0; } }
 
         .urgente { border: 2px solid #ef4444 !important; animation: pulse 1.5s infinite; }
-        @keyframes pulse { 
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 
-            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } 
-        }
-
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
         .swal2-popup { background: #0f172a !important; color: #fff !important; border: 1px solid #334155 !important; }
     </style>
 </head>
-<body class="p-4 md:p-10">
+<body>
 
     <script>
         const DB_BASE = 'https://vods-23763-default-rtdb.firebaseio.com';
@@ -77,7 +42,7 @@
         const API_KEY_TMDB = '9e64130cb366f23a3398f4f7c8e982c0';
         const ADMIN_WPP = '91988478336'; 
 
-        // CONFIGURAÇÃO DA SUA API DE WHATSAPP (QR CODE)
+        // CONFIGURAÇÃO DA SUA API (QR CODE)
         const WHATSAPP_API_URL = 'SUA_URL_DA_API_AQUI'; 
         const WHATSAPP_TOKEN = 'SEU_TOKEN_AQUI';
 
@@ -98,11 +63,8 @@
         }
     </script>
 
-    <header id="main-header" class="container mx-auto flex flex-col md:flex-row justify-between items-center mb-12 gap-6 hidden card-animate">
-        <div class="text-center md:text-left">
-            <h1 class="text-4xl font-black tracking-tighter text-blue-500">PORTAL<span class="text-white">VOD</span></h1>
-            <p id="user-display" class="text-slate-400 font-medium text-sm mt-1"></p>
-        </div>
+    <header id="main-header" class="container mx-auto flex flex-col md:flex-row justify-between items-center p-6 mb-8 gap-6 hidden">
+        <h1 class="text-4xl font-black text-blue-500">PORTAL<span class="text-white">VOD</span></h1>
         <nav class="flex gap-2 glass p-2 rounded-2xl">
             <button onclick="showPage('cliente')" class="px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-700 transition">Início</button>
             <button onclick="showPage('status')" class="px-4 py-2 rounded-xl text-sm font-bold hover:bg-slate-700 transition">Meus Pedidos</button>
@@ -111,126 +73,145 @@
         </nav>
     </header>
 
-    <main id="page-auth" class="container mx-auto max-w-md mt-20 card-animate">
-        <div class="glass p-10 rounded-[40px] text-center border border-white/10">
+    <main id="page-auth" class="container mx-auto max-w-md mt-20 p-4">
+        <div class="glass p-10 rounded-[40px] text-center">
             <h1 class="text-4xl font-black text-blue-500 mb-8">PORTAL<span class="text-white">VOD</span></h1>
-            
             <div id="form-login" class="space-y-4">
                 <input type="text" id="loginUser" placeholder="Usuário ou WhatsApp" class="w-full input-dark p-4 rounded-2xl">
                 <input type="password" id="loginPass" placeholder="Sua Senha" class="w-full input-dark p-4 rounded-2xl">
-                <button onclick="loginApp()" class="w-full py-4 bg-blue-600 hover:bg-blue-700 rounded-2xl font-black transition shadow-lg shadow-blue-900/20">ENTRAR</button>
-                <button onclick="toggleAuthMode('register')" class="text-sm text-blue-400 font-bold mt-4 block mx-auto">Não tem conta? Cadastre-se</button>
+                <button onclick="loginApp()" class="w-full py-4 bg-blue-600 rounded-2xl font-black transition shadow-lg">ENTRAR</button>
+                <div class="flex justify-between mt-4 px-2">
+                    <button onclick="toggleAuthMode('forgot')" class="text-sm text-slate-400">Esqueceu a senha?</button>
+                    <button onclick="toggleAuthMode('register')" class="text-sm text-blue-400 font-bold">Criar conta</button>
+                </div>
             </div>
-
             <div id="form-register" class="space-y-4 hidden">
                 <input type="text" id="regUser" placeholder="Username" class="w-full input-dark p-4 rounded-2xl">
                 <input type="text" id="regName" placeholder="Nome Completo" class="w-full input-dark p-4 rounded-2xl">
                 <input type="tel" id="regWpp" placeholder="DDD + Número" class="w-full input-dark p-4 rounded-2xl">
                 <input type="password" id="regPass" placeholder="Senha" class="w-full input-dark p-4 rounded-2xl">
-                <button onclick="registerApp()" class="w-full py-4 bg-green-600 rounded-2xl font-black transition">CRIAR CONTA</button>
+                <button onclick="registerApp()" class="w-full py-4 bg-green-600 rounded-2xl font-black transition">CADASTRAR</button>
+                <button onclick="toggleAuthMode('login')" class="text-sm text-slate-400 mt-4 block mx-auto">Voltar</button>
+            </div>
+            <div id="form-forgot" class="space-y-4 hidden">
+                <p class="text-sm text-slate-400 mb-4">Enviaremos um novo código para o seu WhatsApp cadastrado.</p>
+                <input type="tel" id="forgotWpp" placeholder="Digite seu WhatsApp" class="w-full input-dark p-4 rounded-2xl">
+                <button onclick="forgotPassword()" class="w-full py-4 bg-yellow-600 rounded-2xl font-black transition text-black">RECUPERAR ACESSO</button>
                 <button onclick="toggleAuthMode('login')" class="text-sm text-slate-400 mt-4 block mx-auto">Voltar</button>
             </div>
         </div>
     </main>
 
-    <main id="page-otp" class="container mx-auto max-w-md mt-20 card-animate hidden">
-        <div class="glass p-10 rounded-[40px] text-center border border-green-500/20">
+    <main id="page-otp" class="container mx-auto max-w-md mt-20 p-4 hidden">
+        <div class="glass p-10 rounded-[40px] text-center">
             <i class="fab fa-whatsapp text-6xl text-green-500 mb-6"></i>
             <h2 class="text-2xl font-black mb-2">Valide seu Acesso</h2>
-            <p class="text-slate-400 text-sm mb-8">O código foi enviado para o seu WhatsApp automaticamente.</p>
             <input type="text" id="otpCode" placeholder="000000" class="w-full input-dark p-4 rounded-2xl text-center text-3xl font-black tracking-widest">
-            <button onclick="verifyOTP()" class="w-full py-4 bg-green-600 hover:bg-green-700 rounded-2xl font-black mt-6 transition">CONFIRMAR CÓDIGO</button>
+            <button onclick="verifyOTP()" class="w-full py-4 bg-green-600 rounded-2xl font-black mt-6 transition">CONFIRMAR</button>
         </div>
     </main>
 
-    <main id="page-cliente" class="container mx-auto max-w-6xl hidden card-animate">
+    <main id="page-admin" class="container mx-auto max-w-7xl p-6 hidden">
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-3xl font-black text-blue-500">ADMINISTRAÇÃO</h2>
+            <button onclick="verTodosUsuarios()" class="bg-blue-600 px-6 py-2 rounded-xl text-xs font-bold">LISTAR CLIENTES</button>
+        </div>
+        <div class="glass rounded-3xl overflow-hidden">
+            <table class="w-full text-left">
+                <thead class="bg-slate-900/50 text-slate-500 text-[10px] font-black uppercase">
+                    <tr><th class="p-6">Conteúdo</th><th class="p-6">Solicitante</th><th class="p-6">Data/Hora</th><th class="p-6">Status</th><th class="p-6 text-center">Ação</th></tr>
+                </thead>
+                <tbody id="admin-table" class="divide-y divide-white/5"></tbody>
+            </table>
+        </div>
+    </main>
+
+    <main id="page-cliente" class="container mx-auto max-w-6xl p-6 hidden">
         <div class="glass p-8 rounded-[32px] mb-8">
             <div class="flex gap-4 mb-6">
                 <button onclick="setSearchMode('movie')" id="btn-movie" class="px-6 py-2 rounded-full text-xs font-black bg-blue-600">FILMES/SÉRIES</button>
                 <button onclick="setSearchMode('tv')" id="btn-tv" class="px-6 py-2 rounded-full text-xs font-black bg-slate-800">CANAIS TV</button>
             </div>
-            <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="O que você quer assistir hoje?" class="w-full input-dark p-5 rounded-2xl shadow-inner">
+            <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="Pesquisar..." class="w-full input-dark p-5 rounded-2xl">
         </div>
         <div id="grid-content" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6"></div>
     </main>
 
-    <main id="page-admin" class="container mx-auto max-w-7xl hidden card-animate">
-        <div class="flex justify-between items-center mb-8">
-            <h2 class="text-3xl font-black text-blue-500">ADMIN PAINEL</h2>
-            <div class="flex gap-2">
-                <button onclick="exportToExcel()" class="bg-green-700 px-4 py-2 rounded-xl text-[10px] font-bold">EXPORTAR CSV</button>
-                <button onclick="verTodosUsuarios()" class="bg-blue-600 px-4 py-2 rounded-xl text-[10px] font-bold">LISTAR CLIENTES</button>
-            </div>
-        </div>
-        
-        <div class="grid lg:grid-cols-4 gap-6 mb-8">
-            <div class="glass p-6 rounded-3xl border-l-4 border-blue-500">
-                <p class="text-slate-400 text-xs uppercase font-bold">Top Pedidos</p>
-                <div id="ranking-list" class="mt-4 space-y-2"></div>
-            </div>
-            <div class="lg:col-span-3 glass rounded-3xl overflow-hidden">
-                <table class="w-full text-left">
-                    <thead class="bg-slate-900/50 text-slate-500 text-[10px] font-black uppercase">
-                        <tr><th class="p-4">Conteúdo</th><th class="p-4">Usuário</th><th class="p-4">Status</th><th class="p-4 text-center">Ação</th></tr>
-                    </thead>
-                    <tbody id="admin-table" class="divide-y divide-white/5"></tbody>
-                </table>
-            </div>
-        </div>
+    <main id="page-status" class="container mx-auto max-w-2xl p-6 hidden">
+        <h2 class="text-3xl font-black mb-8">Meus Pedidos</h2>
+        <div id="track-results" class="space-y-4"></div>
     </main>
 
     <div id="modal" class="fixed inset-0 bg-black/90 hidden flex items-center justify-center p-4 z-50">
-        <div class="glass rounded-[40px] max-w-md w-full p-10 text-center border border-white/10">
+        <div class="glass rounded-[40px] max-w-md w-full p-10 text-center">
             <div id="modal-poster" class="w-32 h-44 bg-slate-800 rounded-3xl mb-6 mx-auto overflow-hidden"></div>
             <h3 class="text-2xl font-black mb-6" id="modalTitle"></h3>
             <select id="requestType" class="w-full input-dark p-4 rounded-2xl mb-4">
                 <option value="Adição">🎬 Solicitar Adição</option>
                 <option value="Conserto">🛠️ Relatar Problema</option>
+                <option value="Atualização">🔄 Solicitar Atualização</option>
             </select>
-            <textarea id="userObs" placeholder="Algum detalhe extra?" class="w-full input-dark p-4 rounded-2xl h-24 mb-6"></textarea>
-            <button onclick="saveToFirebase()" class="w-full py-5 bg-blue-600 rounded-[24px] font-black hover:bg-blue-700 transition">ENVIAR SOLICITAÇÃO</button>
-            <button onclick="closeModal()" class="mt-4 text-slate-500 font-bold">Fechar</button>
+            <textarea id="userObs" placeholder="Algum detalhe?" class="w-full input-dark p-4 rounded-2xl h-24 mb-6"></textarea>
+            <button onclick="saveToFirebase()" class="w-full py-5 bg-blue-600 rounded-[24px] font-black shadow-lg">ENVIAR</button>
+            <button onclick="closeModal()" class="mt-4 text-slate-500 block w-full font-bold">Cancelar</button>
         </div>
     </div>
 
     <script>
-        // --- TODAS AS FUNÇÕES RESTAURADAS ---
+        // CORE FUNCTIONS
+        window.onload = () => {
+            const savedUser = localStorage.getItem('vod_user');
+            if(savedUser) { currentUserLogado = JSON.parse(savedUser); ativarModoLogado(); }
+        };
 
         function toggleAuthMode(mode) {
             document.getElementById('form-login').classList.add('hidden');
             document.getElementById('form-register').classList.add('hidden');
+            document.getElementById('form-forgot').classList.add('hidden');
             document.getElementById(`form-${mode}`).classList.remove('hidden');
         }
 
+        async function forgotPassword() {
+            const wpp = document.getElementById('forgotWpp').value.replace(/\D/g,'');
+            const res = await fetch(`${USERS_URL}/${wpp}.json`);
+            const user = await res.json();
+            if(user) {
+                const novoCodigo = Math.floor(100000 + Math.random() * 900000).toString();
+                await fetch(`${USERS_URL}/${wpp}.json`, { method: 'PATCH', body: JSON.stringify({ codigo: novoCodigo, verificado: false }) });
+                dispararWhatsApp(wpp, novoCodigo);
+                Swal.fire('Enviado', 'Confira seu WhatsApp', 'success');
+                toggleAuthMode('login');
+            } else { Swal.fire('Erro', 'WhatsApp não encontrado', 'error'); }
+        }
+
         async function registerApp() {
-            const username = document.getElementById('regUser').value.trim().toLowerCase();
-            const nome = document.getElementById('regName').value.trim();
             const wpp = document.getElementById('regWpp').value.replace(/\D/g,'');
-            const senha = document.getElementById('regPass').value;
-            if(!username || !nome || wpp.length < 10) return Swal.fire('Erro', 'Dados incompletos', 'warning');
-            
-            const codigoOTP = Math.floor(100000 + Math.random() * 900000).toString();
-            await fetch(`${USERS_URL}/${wpp}.json`, {
-                method: 'PUT',
-                body: JSON.stringify({ username, nome, wpp, senha, codigo: codigoOTP, verificado: false })
-            });
-            tempWppForOTP = wpp;
-            dispararWhatsApp(wpp, codigoOTP);
+            const codigo = Math.floor(100000 + Math.random() * 900000).toString();
+            const data = { 
+                username: document.getElementById('regUser').value,
+                nome: document.getElementById('regName').value,
+                wpp: wpp,
+                senha: document.getElementById('regPass').value,
+                codigo: codigo, verificado: false 
+            };
+            await fetch(`${USERS_URL}/${wpp}.json`, { method: 'PUT', body: JSON.stringify(data) });
+            dispararWhatsApp(wpp, codigo);
             document.getElementById('page-auth').classList.add('hidden');
             document.getElementById('page-otp').classList.remove('hidden');
+            tempWppForOTP = wpp;
         }
 
         async function loginApp() {
-            const userInp = document.getElementById('loginUser').value.trim().toLowerCase();
-            const senhaInp = document.getElementById('loginPass').value;
+            const userInp = document.getElementById('loginUser').value.trim();
+            const passInp = document.getElementById('loginPass').value;
             const res = await fetch(`${USERS_URL}.json`);
             const users = await res.json() || {};
-            const user = Object.values(users).find(u => u.username === userInp || u.wpp === userInp);
+            const user = Object.values(users).find(u => (u.username === userInp || u.wpp === userInp) && u.senha === passInp);
             
-            if(user && user.senha === senhaInp) {
+            if(user) {
                 if(!user.verificado) {
-                    tempWppForOTP = user.wpp;
                     dispararWhatsApp(user.wpp, user.codigo);
+                    tempWppForOTP = user.wpp;
                     document.getElementById('page-auth').classList.add('hidden');
                     document.getElementById('page-otp').classList.remove('hidden');
                 } else {
@@ -241,23 +222,10 @@
             } else { Swal.fire('Erro', 'Login inválido', 'error'); }
         }
 
-        async function verifyOTP() {
-            const code = document.getElementById('otpCode').value;
-            const res = await fetch(`${USERS_URL}/${tempWppForOTP}.json`);
-            const user = await res.json();
-            if(user && user.codigo === code) {
-                await fetch(`${USERS_URL}/${tempWppForOTP}.json`, { method: 'PATCH', body: JSON.stringify({ verificado: true }) });
-                currentUserLogado = user;
-                localStorage.setItem('vod_user', JSON.stringify(user));
-                ativarModoLogado();
-                document.getElementById('page-otp').classList.add('hidden');
-            } else { Swal.fire('Erro', 'Código incorreto', 'error'); }
-        }
-
         function ativarModoLogado() {
             document.getElementById('page-auth').classList.add('hidden');
+            document.getElementById('page-otp').classList.add('hidden');
             document.getElementById('main-header').classList.remove('hidden');
-            document.getElementById('user-display').innerHTML = `Logado como: <b>${currentUserLogado.nome}</b>`;
             if(currentUserLogado.wpp === ADMIN_WPP) document.getElementById('btn-nav-admin').classList.remove('hidden');
             showPage('cliente');
         }
@@ -269,42 +237,28 @@
             if(p === 'status') trackRequests();
         }
 
-        function logoutApp() { localStorage.removeItem('vod_user'); location.reload(); }
-
         async function handleSearch() {
             const q = document.getElementById('searchInput').value;
             if(q.length < 3) return;
-            const type = searchMode === 'movie' ? 'multi' : 'tv';
-            const res = await fetch(`https://api.themoviedb.org/3/search/${type}?api_key=${API_KEY_TMDB}&language=pt-BR&query=${q}`);
+            const res = await fetch(`https://api.themoviedb.org/3/search/${searchMode === 'movie' ? 'multi' : 'tv'}?api_key=${API_KEY_TMDB}&language=pt-BR&query=${q}`);
             const data = await res.json();
-            const grid = document.getElementById('grid-content');
-            grid.innerHTML = data.results.filter(i => i.poster_path).map(i => `
-                <div class="glass p-3 rounded-3xl hover:scale-105 transition card-animate">
-                    <img src="https://image.tmdb.org/t/p/w500${i.poster_path}" class="w-full h-56 object-cover rounded-2xl mb-3">
-                    <h4 class="font-bold text-[11px] truncate mb-3 px-1">${i.title || i.name}</h4>
-                    <button onclick="openModal('${(i.title || i.name).replace(/'/g, "")}', 'https://image.tmdb.org/t/p/w500${i.poster_path}')" class="w-full bg-blue-600/10 text-blue-400 py-2 rounded-xl text-[9px] font-black uppercase">Solicitar</button>
+            document.getElementById('grid-content').innerHTML = data.results.filter(i => i.poster_path).map(i => `
+                <div class="glass p-4 rounded-3xl hover:scale-105 transition card-animate">
+                    <img src="https://image.tmdb.org/t/p/w500${i.poster_path}" class="w-full h-56 object-cover rounded-2xl mb-4">
+                    <h4 class="font-bold text-xs truncate mb-4">${i.title || i.name}</h4>
+                    <button onclick="openModal('${(i.title || i.name).replace(/'/g, "")}', 'https://image.tmdb.org/t/p/w500${i.poster_path}')" class="w-full bg-blue-600/20 text-blue-400 py-2 rounded-xl text-[10px] font-black uppercase">Pedir</button>
                 </div>`).join('');
         }
 
-        function openModal(name, img) {
-            currentItem = { name, img };
-            document.getElementById('modalTitle').innerText = name;
-            document.getElementById('modal-poster').innerHTML = `<img src="${img}" class="w-full h-full object-cover">`;
-            document.getElementById('modal').classList.remove('hidden');
-        }
-        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
-
         async function saveToFirebase() {
-            const obs = document.getElementById('userObs').value;
-            const type = document.getElementById('requestType').value;
-            await fetch(DATABASE_URL, { 
-                method: 'POST', 
-                body: JSON.stringify({ 
-                    ...currentItem, user: currentUserLogado.nome, wpp: currentUserLogado.wpp, 
-                    type, obs, status: 'Pendente', date: new Date().toLocaleString('pt-BR') 
-                }) 
-            });
-            Swal.fire('Pronto!', 'Pedido enviado para o admin.', 'success');
+            const data = { 
+                ...currentItem, user: currentUserLogado.nome, wpp: currentUserLogado.wpp, 
+                type: document.getElementById('requestType').value,
+                obs: document.getElementById('userObs').value,
+                status: 'Pendente', date: new Date().toLocaleDateString('pt-BR'), hour: new Date().toLocaleTimeString('pt-BR')
+            };
+            await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify(data) });
+            Swal.fire('Sucesso', 'Pedido enviado!', 'success');
             closeModal();
         }
 
@@ -312,32 +266,29 @@
             const res = await fetch(DATABASE_URL);
             const data = await res.json() || {};
             const table = document.getElementById('admin-table');
-            const rankingList = document.getElementById('ranking-list');
-            table.innerHTML = "";
-            let ranking = {};
-
-            Object.keys(data).reverse().forEach(id => {
+            table.innerHTML = Object.keys(data).reverse().map(id => {
                 const p = data[id];
-                ranking[p.name] = (ranking[p.name] || 0) + 1;
-                table.innerHTML += `
-                <tr class="hover:bg-white/5 transition">
-                    <td class="p-4 flex gap-3 items-center">
-                        <img src="${p.img}" class="w-10 h-14 rounded object-cover ${p.type==='Conserto'?'urgente':''}">
-                        <div class="text-[10px] font-bold">${p.name}</div>
+                return `
+                <tr id="row-${id}" class="hover:bg-white/5 transition">
+                    <td class="p-6 flex gap-4 items-center">
+                        <img src="${p.img}" class="w-10 h-14 rounded object-cover shadow-xl ${p.type==='Conserto'?'urgente':''}">
+                        <div class="text-xs font-bold">${p.name}</div>
                     </td>
-                    <td class="p-4 text-[9px] text-slate-400">${p.user}</td>
-                    <td class="p-4">
-                        <select onchange="updateStatus('${id}', this.value)" class="bg-slate-800 text-[9px] p-1 rounded border-none">
+                    <td class="p-6 text-[10px] text-slate-400">${p.user}<br>${p.wpp}</td>
+                    <td class="p-6 text-[10px] text-slate-400">${p.date}<br>${p.hour}</td>
+                    <td class="p-6">
+                        <select onchange="updateStatus('${id}', this.value)" class="bg-slate-800 text-[9px] p-2 rounded-lg outline-none">
                             <option value="Pendente" ${p.status==='Pendente'?'selected':''}>Pendente</option>
+                            <option value="Análise" ${p.status==='Análise'?'selected':''}>Análise</option>
                             <option value="Concluído" ${p.status==='Concluído'?'selected':''}>Concluído</option>
+                            <option value="Rejeitado" ${p.status==='Rejeitado'?'selected':''}>Rejeitado</option>
                         </select>
                     </td>
-                    <td class="p-4 text-center"><button onclick="deletePedido('${id}')" class="text-slate-600"><i class="fas fa-trash"></i></button></td>
+                    <td class="p-6 text-center">
+                        <button onclick="deletePedido('${id}')" class="text-slate-600 hover:text-red-500 transition-all transform hover:scale-125"><i class="fas fa-trash"></i></button>
+                    </td>
                 </tr>`;
-            });
-            
-            const sorted = Object.entries(ranking).sort((a,b) => b[1] - a[1]).slice(0, 5);
-            rankingList.innerHTML = sorted.map(([name, count]) => `<div class="flex justify-between text-[10px] bg-white/5 p-2 rounded"><span>${name}</span><b>${count}x</b></div>`).join('');
+            }).join('');
         }
 
         async function updateStatus(id, status) {
@@ -345,9 +296,18 @@
         }
 
         async function deletePedido(id) {
-            await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' });
-            loadAdmin();
+            const row = document.getElementById(`row-${id}`);
+            row.classList.add('exit-animate');
+            setTimeout(async () => {
+                await fetch(DATABASE_URL.replace('.json', `/${id}.json`), { method: 'DELETE' });
+                loadAdmin();
+            }, 400);
         }
+
+        function logoutApp() { localStorage.removeItem('vod_user'); location.reload(); }
+        function openModal(name, img) { currentItem = { name, img }; document.getElementById('modalTitle').innerText = name; document.getElementById('modal-poster').innerHTML = `<img src="${img}" class="w-full h-full object-cover">`; document.getElementById('modal').classList.remove('hidden'); }
+        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+        function setSearchMode(m) { searchMode = m; document.getElementById('btn-movie').className = m === 'movie' ? 'px-6 py-2 rounded-full text-xs font-black bg-blue-600' : 'px-6 py-2 rounded-full text-xs font-black bg-slate-800'; }
     </script>
 </body>
 </html>
