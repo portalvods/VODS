@@ -70,6 +70,35 @@
                 return response.ok; 
             } catch (e) { return false; }
         }
+
+        // FUNÇÃO DE VERIFICAÇÃO DA VPS
+        async function checkVPSStatus() {
+            try {
+                const res = await fetch(`${DB_BASE}/status_vps.json`);
+                const data = await res.json();
+                const dot = document.getElementById('vps-dot');
+                const text = document.getElementById('vps-text');
+                if (!dot || !text) return;
+                if (!data || !data.lastSeen) { updateVPSUI(dot, text, false); return; }
+                const agora = Date.now();
+                const diferenca = (agora - data.lastSeen) / 1000;
+                updateVPSUI(dot, text, (diferenca <= 90));
+            } catch (e) { console.error("Erro VPS:", e); }
+        }
+        function updateVPSUI(dot, text, isOnline) {
+            if (isOnline) {
+                dot.className = "w-3 h-3 rounded-full bg-green-500 animate-pulse";
+                text.innerText = "VPS Conectada";
+                text.className = "text-[10px] font-black uppercase text-green-400";
+            } else {
+                dot.className = "w-3 h-3 rounded-full bg-red-500";
+                text.innerText = "VPS Desconectada";
+                text.className = "text-[10px] font-black uppercase text-red-400";
+            }
+        }
+        setInterval(() => {
+            if(!document.getElementById('page-admin').classList.contains('hidden')) checkVPSStatus();
+        }, 10000);
     </script>
 
     <header id="main-header" class="container mx-auto flex flex-col md:flex-row justify-between items-center p-6 mb-4 gap-6 hidden">
@@ -138,6 +167,13 @@
     </main>
 
     <main id="page-admin" class="container mx-auto max-w-7xl p-6 hidden">
+        <div class="flex justify-end mb-4">
+            <div id="vps-indicator" class="flex items-center gap-2 glass px-4 py-2 rounded-full border border-white/10">
+                <div id="vps-dot" class="w-3 h-3 rounded-full bg-slate-500"></div>
+                <span id="vps-text" class="text-[10px] font-black uppercase text-slate-400">Verificando VPS...</span>
+            </div>
+        </div>
+
         <div id="admin-stats-container" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
             <div class="stat-card"><p class="text-[10px] font-bold text-slate-400 uppercase">Total</p><h3 id="stat-total" class="text-3xl font-black text-white">0</h3></div>
             <div class="stat-card border-b-4 border-amber-600"><p class="text-[10px] font-bold text-amber-500 uppercase">Pendentes</p><h3 id="stat-pendente" class="text-3xl font-black text-white">0</h3></div>
@@ -202,7 +238,6 @@
                 isPasswordReset = true;
                 tempWppForOTP = wpp;
                 const code = Math.floor(100000 + Math.random() * 900000).toString();
-                // Forçamos o salvamento ANTES de disparar o WhatsApp
                 await fetch(`${USERS_URL}/${wpp}.json`, { method: 'PATCH', body: JSON.stringify({ codigo: code }) });
                 const sent = await dispararWhatsApp(wpp, `Recuperação Portal VOD. Código: ${code}`);
                 if(sent) {
@@ -230,11 +265,9 @@
             } else { Swal.fire('Erro', 'Código Inválido', 'error'); }
         }
 
-        // BUSCA TMDB CORRIGIDA
         async function handleSearch() {
             const q = document.getElementById('searchInput').value;
             if(q.length < 3) return;
-            // Corrigido: Para TV usamos endpoint exclusivo
             const endpoint = searchMode === 'tv' ? `search/tv` : `search/multi`;
             const res = await fetch(`https://api.themoviedb.org/3/${endpoint}?api_key=${API_KEY_TMDB}&language=pt-BR&query=${q}`);
             const data = await res.json();
@@ -246,7 +279,6 @@
                 </div>`).join('');
         }
 
-        // SALVAR COM FOTO, DATA E HORA
         async function saveToFirebase() {
             const photoFile = document.getElementById('userPhoto').files[0];
             let photoBase64 = "";
@@ -275,8 +307,8 @@
             Swal.fire('Enviado!', '', 'success'); closeModal();
         }
 
-        // ADMIN COM DADOS COMPLETOS E VER FOTO
         async function loadAdmin() {
+            checkVPSStatus(); // Força uma checagem ao carregar admin
             const res = await fetch(DATABASE_URL);
             const data = await res.json() || {};
             const table = document.getElementById('admin-table');
@@ -330,12 +362,10 @@
             rankingList.innerHTML = sorted.map(([name, count]) => `<div class="flex justify-between items-center bg-white/5 p-2 rounded-xl text-[10px] font-bold"><span>${name}</span><span class="text-blue-500">${count}x</span></div>`).join('');
         }
 
-        // FUNÇÃO PARA VER FOTO DO CLIENTE
         function verFoto(base64) {
             Swal.fire({ title: 'Foto do Pedido', imageUrl: base64, imageAlt: 'Print do Cliente', showConfirmButton: false });
         }
 
-        // ZERAR APENAS O RANKING (VISUAL)
         function zerarRanking() {
             Swal.fire({ title: 'Limpar Top 10?', text: 'Isso remove a contagem do Ranking visual, mas não apaga os pedidos.', icon: 'warning', showCancelButton: true }).then((result) => {
                 if(result.isConfirmed) {
@@ -345,7 +375,6 @@
             });
         }
 
-        // NAVEGAÇÃO E REENVIAR
         function ativarModoLogado(page = 'cliente') {
             document.getElementById('page-auth').classList.add('hidden');
             document.getElementById('main-header').classList.remove('hidden');
