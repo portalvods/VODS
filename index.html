@@ -22,6 +22,7 @@
 
         .btn-filter { padding: 10px 20px; border-radius: 12px; font-size: 11px; font-weight: 800; text-transform: uppercase; transition: 0.3s; border: 1px solid rgba(255,255,255,0.1); color: white; cursor: pointer; }
         #f-Todos { background: #475569; }
+        #f-Pendente { background: #78350f; }
         #f-Análise { background: #1e40af; }
         #f-Concluído { background: #166534; }
         #f-Rejeitado { background: #991b1b; }
@@ -228,6 +229,7 @@
             <div class="lg:col-span-3">
                 <div class="flex flex-wrap gap-2 mb-6">
                     <button onclick="filterAdmin('Todos')" class="btn-filter active-filter" id="f-Todos">Todos</button>
+                    <button onclick="filterAdmin('Pendente')" class="btn-filter" id="f-Pendente">Pendente</button>
                     <button onclick="filterAdmin('Análise')" class="btn-filter" id="f-Análise">Análise</button>
                     <button onclick="filterAdmin('Concluído')" class="btn-filter" id="f-Concluído">Concluído</button>
                     <button onclick="filterAdmin('Rejeitado')" class="btn-filter" id="f-Rejeitado">Rejeitados</button>
@@ -304,6 +306,7 @@
         async function handleSearch() {
             const q = document.getElementById('searchInput').value;
             if(q.length < 3) return;
+            // ALTERAÇÃO: Ajustado para buscar canais de TV via endpoint correto quando searchMode for 'tv'
             const endpoint = searchMode === 'tv' ? `search/tv` : `search/multi`;
             const res = await fetch(`https://api.themoviedb.org/3/${endpoint}?api_key=${API_KEY_TMDB}&language=pt-BR&query=${q}`);
             const data = await res.json();
