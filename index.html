@@ -96,6 +96,31 @@
                 text.className = "text-[10px] font-black uppercase text-red-400";
             }
         }
+        
+        // FUNÇÃO PARA BUSCAR O QR CODE DO WHATSAPP
+        async function getQRCode() {
+            const container = document.getElementById('qrcode-container');
+            const img = document.getElementById('qrcode-img');
+            const msg = document.getElementById('wpp-status-msg');
+            msg.innerText = "Solicitando QR Code...";
+            container.classList.add('hidden');
+            try {
+                const response = await fetch('http://163.245.218.96:3001/get-qrcode'); 
+                const data = await response.json();
+                if (data.qrcode) {
+                    img.src = data.qrcode;
+                    container.classList.remove('hidden');
+                    msg.innerText = "Aponte o celular para a tela";
+                } else if (data.connected) {
+                    msg.innerText = "WhatsApp já está conectado! ✅";
+                } else {
+                    msg.innerText = "Erro ao gerar. Verifique se a API na VPS está rodando.";
+                }
+            } catch (e) {
+                msg.innerText = "Erro: VPS Offline ou API não encontrada.";
+            }
+        }
+
         setInterval(() => {
             if(!document.getElementById('page-admin').classList.contains('hidden')) checkVPSStatus();
         }, 10000);
@@ -174,6 +199,18 @@
             </div>
         </div>
 
+        <div id="wpp-connection-area" class="glass p-6 rounded-3xl mb-8 border border-blue-500/20">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xs font-black text-white uppercase">Conexão WhatsApp</h3>
+                <button onclick="getQRCode()" class="px-4 py-2 bg-blue-600 rounded-xl text-[10px] font-black">GERAR NOVO QR CODE</button>
+            </div>
+            <div id="qrcode-container" class="flex flex-col items-center justify-center p-4 bg-white rounded-2xl min-h-[250px] w-64 mx-auto hidden">
+                <img id="qrcode-img" src="" alt="QR Code WhatsApp" class="w-full">
+                <p class="text-black text-[10px] font-bold mt-2">Escaneie para conectar</p>
+            </div>
+            <p id="wpp-status-msg" class="text-center text-[10px] text-slate-400 font-bold uppercase">Aguardando comando...</p>
+        </div>
+
         <div id="admin-stats-container" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
             <div class="stat-card"><p class="text-[10px] font-bold text-slate-400 uppercase">Total</p><h3 id="stat-total" class="text-3xl font-black text-white">0</h3></div>
             <div class="stat-card border-b-4 border-amber-600"><p class="text-[10px] font-bold text-amber-500 uppercase">Pendentes</p><h3 id="stat-pendente" class="text-3xl font-black text-white">0</h3></div>
@@ -228,7 +265,6 @@
     </div>
 
     <script>
-        // RECUPERAÇÃO DE SENHA CORRIGIDA COM AWAIT
         async function forgotPassword() {
             const wpp = document.getElementById('forgotWpp').value.replace(/\D/g,'');
             if(!wpp) return Swal.fire('Erro', 'Digite seu WhatsApp', 'warning');
@@ -308,7 +344,7 @@
         }
 
         async function loadAdmin() {
-            checkVPSStatus(); // Força uma checagem ao carregar admin
+            checkVPSStatus();
             const res = await fetch(DATABASE_URL);
             const data = await res.json() || {};
             const table = document.getElementById('admin-table');
