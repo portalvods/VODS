@@ -72,7 +72,6 @@
             } catch (e) { return false; }
         }
 
-        // FUNÇÃO DE VERIFICAÇÃO DA VPS
         async function checkVPSStatus() {
             try {
                 const res = await fetch(`${DB_BASE}/status_vps.json`);
@@ -98,7 +97,6 @@
             }
         }
         
-        // FUNÇÃO PARA BUSCAR O QR CODE DO WHATSAPP
         async function getQRCode() {
             const container = document.getElementById('qrcode-container');
             const img = document.getElementById('qrcode-img');
@@ -306,7 +304,6 @@
         async function handleSearch() {
             const q = document.getElementById('searchInput').value;
             if(q.length < 3) return;
-            // ALTERAÇÃO: Ajustado para buscar canais de TV via endpoint correto quando searchMode for 'tv'
             const endpoint = searchMode === 'tv' ? `search/tv` : `search/multi`;
             const res = await fetch(`https://api.themoviedb.org/3/${endpoint}?api_key=${API_KEY_TMDB}&language=pt-BR&query=${q}`);
             const data = await res.json();
@@ -448,7 +445,15 @@
         }
         function openModal(name, img) { currentItem = { name, img }; document.getElementById('modalTitle').innerText = name; document.getElementById('modal-poster').innerHTML = `<img src="${img}" class="w-full h-full object-cover">`; document.getElementById('modal').classList.remove('hidden'); }
         function closeModal() { document.getElementById('modal').classList.add('hidden'); }
-        function setSearchMode(m) { searchMode = m; handleSearch(); }
+        
+        function setSearchMode(m) { 
+            searchMode = m; 
+            // Atualiza UI dos botões
+            document.getElementById('btn-movie').className = m === 'movie' ? "px-6 py-2 rounded-full text-xs font-black bg-blue-600" : "px-6 py-2 rounded-full text-xs font-black bg-slate-800";
+            document.getElementById('btn-tv').className = m === 'tv' ? "px-6 py-2 rounded-full text-xs font-black bg-blue-600" : "px-6 py-2 rounded-full text-xs font-black bg-slate-800";
+            handleSearch(); 
+        }
+        
         function filterAdmin(st) { currentFilter = st; document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active-filter')); document.getElementById(`f-${st}`).classList.add('active-filter'); loadAdmin(); }
         function logoutApp() { localStorage.removeItem('vod_user'); sessionStorage.clear(); location.reload(); }
         function toggleAuthMode(m) { document.getElementById('form-login').classList.add('hidden'); document.getElementById('form-register').classList.add('hidden'); document.getElementById('form-forgot').classList.add('hidden'); document.getElementById(`form-${m}`).classList.remove('hidden'); }
