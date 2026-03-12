@@ -343,26 +343,30 @@
             Swal.fire('Enviado!', '', 'success'); closeModal();
         }
 
+        // FUNÇÃO DE CARREGAMENTO ADMIN CORRIGIDA
         async function loadAdmin() {
             checkVPSStatus();
-            
-            // Carregamento Otimizado: Tenta carregar do cache local primeiro para velocidade
-            const cachedData = localStorage.getItem('admin_pedidos_cache');
-            if(cachedData) {
-                renderAdminTable(JSON.parse(cachedData));
-            }
-
-            const res = await fetch(DATABASE_URL);
-            const data = await res.json() || {};
-            
-            // Atualiza o cache e renderiza a versão oficial
-            localStorage.setItem('admin_pedidos_cache', JSON.stringify(data));
-            renderAdminTable(data);
-        }
-
-        function renderAdminTable(data) {
             const table = document.getElementById('admin-table');
             const rankingList = document.getElementById('ranking-list');
+            
+            // Tenta carregar do cache para ser instantâneo
+            const cached = localStorage.getItem('admin_cache_vod');
+            if(cached) {
+                const dataObj = JSON.parse(cached);
+                processarDadosAdmin(dataObj, table, rankingList);
+            }
+
+            try {
+                const res = await fetch(DATABASE_URL);
+                const data = await res.json() || {};
+                localStorage.setItem('admin_cache_vod', JSON.stringify(data));
+                processarDadosAdmin(data, table, rankingList);
+            } catch(e) {
+                console.error("Erro ao buscar dados:", e);
+            }
+        }
+
+        function processarDadosAdmin(data, table, rankingList) {
             let stats = { total: 0, pendente: 0, analise: 0, concluido: 0, rejeitado: 0 };
             let ranking = {};
 
@@ -416,7 +420,7 @@
         }
 
         function verObs(texto) {
-            Swal.fire({ title: 'Observação do Cliente', text: texto, icon: 'info', confirmButtonText: 'Entendido' });
+            Swal.fire({ title: 'Observação do Cliente', text: texto, icon: 'info' });
         }
 
         function verFoto(base64) {
