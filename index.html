@@ -13,11 +13,13 @@
         body { font-family: 'Inter', sans-serif; background-color: var(--bg-dark); color: #f1f5f9; margin: 0; min-height: 100vh; }
         .glass { background: rgba(15, 23, 42, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
         .input-dark { background: #1e293b; border: 1px solid #334155; color: white; transition: 0.3s; }
+        
         .status-badge { font-size: 10px; font-weight: 800; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; }
         .status-pendente { background: #78350f; color: #fef3c7; }
         .status-analise { background: #1e40af; color: #dbeafe; }
         .status-concluido { background: #064e3b; color: #dcfce7; }
         .status-rejeitado { background: #7f1d1d; color: #fee2e2; }
+
         .btn-filter { padding: 10px 20px; border-radius: 12px; font-size: 11px; font-weight: 800; text-transform: uppercase; transition: 0.3s; border: 1px solid rgba(255,255,255,0.1); color: white; cursor: pointer; }
         #f-Todos { background: #475569; }
         #f-Pendente { background: #78350f; }
@@ -25,22 +27,26 @@
         #f-Concluído { background: #166534; }
         #f-Rejeitado { background: #991b1b; }
         .active-filter { border: 2px solid white !important; transform: scale(1.05); box-shadow: 0 0 15px rgba(255,255,255,0.2); }
+
         .stat-card { background: linear-gradient(145deg, #1e293b, #0f172a); border: 1px solid rgba(255,255,255,0.05); border-radius: 24px; padding: 20px; }
     </style>
 </head>
 <body>
 
     <script>
-        // Configurações Globais
         const DB_BASE = 'https://vods-23763-default-rtdb.firebaseio.com';
         const DATABASE_URL = `${DB_BASE}/pedidos.json`;
         const USERS_URL = `${DB_BASE}/usuarios`;
         const API_KEY_TMDB = '9e64130cb366f23a3398f4f7c8e982c0';
         const ADMIN_WPP = '91988478336'; 
+        const WHATSAPP_API_URL = 'http://163.245.218.96:3001/send-message'; 
+        const WHATSAPP_TOKEN = 'portalvodsecret123'; 
 
         let currentUserLogado = null;
         let searchMode = 'movie'; 
         let currentItem = {};
+        let tempWppForOTP = null;
+        let isPasswordReset = false;
         let currentFilter = 'Todos';
 
         window.onload = () => {
@@ -51,6 +57,53 @@
             }
         };
 
+        // --- SISTEMA DE WHATSAPP ---
+        async function dispararWhatsApp(numero, mensagem) {
+            const numLimpo = numero.replace(/\D/g, '');
+            const finalNum = numLimpo.startsWith('55') ? numLimpo : '55' + numLimpo;
+            try {
+                const response = await fetch(WHATSAPP_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${WHATSAPP_TOKEN}` },
+                    body: JSON.stringify({ number: finalNum, message: mensagem })
+                });
+                return response.ok; 
+            } catch (e) { return false; }
+        }
+
+        async function getQRCode() {
+            const container = document.getElementById('qrcode-container');
+            const img = document.getElementById('qrcode-img');
+            const msg = document.getElementById('wpp-status-msg');
+            msg.innerText = "Solicitando QR Code...";
+            container.classList.add('hidden');
+            try {
+                const response = await fetch('http://163.245.218.96:3001/get-qrcode'); 
+                const data = await response.json();
+                if (data.qrcode) {
+                    img.src = data.qrcode;
+                    container.classList.remove('hidden');
+                    msg.innerText = "Aponte o celular para a tela";
+                } else if (data.connected) {
+                    msg.innerText = "WhatsApp já está conectado! ✅";
+                }
+            } catch (e) { msg.innerText = "Erro ao conectar com a VPS."; }
+        }
+
+        async function checkVPSStatus() {
+            try {
+                const res = await fetch(`${DB_BASE}/status_vps.json`);
+                const data = await res.json();
+                const dot = document.getElementById('vps-dot');
+                const text = document.getElementById('vps-text');
+                if (!dot || !text) return;
+                const isOnline = (data && data.lastSeen && (Date.now() - data.lastSeen) / 1000 <= 90);
+                dot.className = isOnline ? "w-3 h-3 rounded-full bg-green-500 animate-pulse" : "w-3 h-3 rounded-full bg-red-500";
+                text.innerText = isOnline ? "VPS Conectada" : "VPS Desconectada";
+            } catch (e) {}
+        }
+
+        // --- NAVEGAÇÃO E AUTH ---
         function ativarModoLogado(page = 'cliente') {
             document.getElementById('page-auth').classList.add('hidden');
             document.getElementById('main-header').classList.remove('hidden');
@@ -62,190 +115,121 @@
             document.querySelectorAll('main').forEach(m => m.classList.add('hidden'));
             document.getElementById(`page-${p}`).classList.remove('hidden');
             sessionStorage.setItem('last_page', p);
-            if(p === 'admin') loadAdmin();
+            if(p === 'admin') { loadAdmin(); checkVPSStatus(); }
             if(p === 'status') trackRequests();
         }
 
-        // --- FUNÇÕES DE CARREGAMENTO (O CORAÇÃO DO PROBLEMA) ---
+        async function loginApp() {
+            const userInp = document.getElementById('loginUser').value.trim();
+            const passInp = document.getElementById('loginPass').value;
+            const res = await fetch(`${USERS_URL}.json`);
+            const users = await res.json() || {};
+            const user = Object.values(users).find(u => (u.username === userInp || u.wpp === userInp) && u.senha === passInp);
+            if(user) {
+                if(!user.verificado) { 
+                    tempWppForOTP = user.wpp; 
+                    reenviarOTP(); 
+                    toggleAuthMode('otp'); 
+                    return; 
+                }
+                currentUserLogado = user; 
+                localStorage.setItem('vod_user', JSON.stringify(user)); 
+                ativarModoLogado();
+            } else { Swal.fire('Erro', 'Dados incorretos', 'error'); }
+        }
 
+        // --- CARREGAMENTO DE DADOS (ADMIN E CLIENTE) ---
         async function loadAdmin() {
             const table = document.getElementById('admin-table');
             const rankingList = document.getElementById('ranking-list');
-            
             try {
                 const res = await fetch(DATABASE_URL);
-                const data = await res.json();
+                const data = await res.json() || {};
                 
-                if(!data) {
-                    table.innerHTML = '<tr><td colspan="6" class="p-10 text-center text-slate-500">Nenhum pedido encontrado no banco.</td></tr>';
-                    return;
-                }
-
                 let stats = { total: 0, pendente: 0, analise: 0, concluido: 0, rejeitado: 0 };
                 let ranking = {};
 
-                const html = Object.keys(data).reverse().map(id => {
+                table.innerHTML = Object.keys(data).reverse().map(id => {
                     const p = data[id];
                     stats.total++;
-                    
-                    // Contagem de Stats
-                    const stNormal = p.status.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                    if(stNormal === 'pendente') stats.pendente++;
-                    else if(stNormal === 'analise') stats.analise++;
-                    else if(stNormal === 'concluido') stats.concluido++;
-                    else if(stNormal === 'rejeitado') stats.rejeitado++;
+                    const st = p.status.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    if(st === 'pendente') stats.pendente++;
+                    else if(st === 'analise') stats.analise++;
+                    else if(st === 'concluido') stats.concluido++;
+                    else if(st === 'rejeitado') stats.rejeitado++;
 
-                    // Ranking
                     ranking[p.name] = (ranking[p.name] || 0) + 1;
-
-                    // Filtro visual
                     if (currentFilter !== 'Todos' && p.status !== currentFilter) return '';
 
-                    return `
-                        <tr class="hover:bg-white/5 transition">
-                            <td class="p-4">
-                                <div class="flex items-center gap-3">
-                                    <img src="${p.img}" class="w-10 h-14 rounded-lg object-cover shadow-lg">
-                                    <div class="text-[11px] font-bold leading-tight">${p.name}</div>
-                                </div>
-                            </td>
-                            <td class="p-4 text-[10px] font-bold">
-                                <span class="text-white">${p.user}</span><br>
-                                <span class="text-blue-400">${p.wpp}</span>
-                            </td>
-                            <td class="p-4 text-[10px] text-slate-400">${p.date}<br>${p.time || ''}</td>
-                            <td class="p-4">
-                                <select onchange="updateStatus('${id}', this.value)" class="bg-slate-800 text-[10px] p-2 rounded-lg border border-white/10 outline-none">
-                                    <option value="Pendente" ${p.status==='Pendente'?'selected':''}>Pendente</option>
-                                    <option value="Análise" ${p.status==='Análise'?'selected':''}>Análise</option>
-                                    <option value="Concluído" ${p.status==='Concluído'?'selected':''}>Concluído</option>
-                                    <option value="Rejeitado" ${p.status==='Rejeitado'?'selected':''}>Rejeitado</option>
-                                </select>
-                            </td>
-                            <td class="p-4 text-center">
-                                ${p.obs ? `<button onclick="Swal.fire('Obs', '${p.obs.replace(/'/g, "\\'")}', 'info')" class="text-amber-400"><i class="fas fa-comment-dots"></i></button>` : '-'}
-                            </td>
-                            <td class="p-4 text-center space-x-2">
-                                ${p.photo ? `<button onclick="verFoto('${p.photo}')" class="text-blue-400"><i class="fas fa-image"></i></button>` : ''}
-                                <button onclick="deletePedido('${id}')" class="text-red-500/50 hover:text-red-500"><i class="fas fa-trash"></i></button>
-                            </td>
-                        </tr>`;
+                    return `<tr>
+                        <td class="p-4"><div class="flex items-center gap-3"><img src="${p.img}" class="w-10 h-14 rounded-lg object-cover"><div class="text-[11px] font-bold">${p.name}</div></div></td>
+                        <td class="p-4 text-[10px] text-slate-400 font-bold">${p.user}<br><span class="text-blue-400">${p.wpp}</span></td>
+                        <td class="p-4 text-[10px] text-slate-400">${p.date}<br>${p.time || '--:--'}</td>
+                        <td class="p-4">
+                            <select onchange="updateStatus('${id}', this.value)" class="bg-slate-800 text-[10px] p-2 rounded-lg">
+                                <option value="Pendente" ${p.status==='Pendente'?'selected':''}>Pendente</option>
+                                <option value="Análise" ${p.status==='Análise'?'selected':''}>Análise</option>
+                                <option value="Concluído" ${p.status==='Concluído'?'selected':''}>Concluído</option>
+                                <option value="Rejeitado" ${p.status==='Rejeitado'?'selected':''}>Rejeitado</option>
+                            </select>
+                        </td>
+                        <td class="p-4 text-center">${p.obs ? `<button onclick="Swal.fire('Obs', '${p.obs}', 'info')" class="text-amber-400"><i class="fas fa-comment-dots"></i></button>` : '-'}</td>
+                        <td class="p-4 text-center space-x-2">
+                            ${p.photo ? `<button onclick="Swal.fire({imageUrl: '${p.photo}', showConfirmButton: false})" class="text-blue-400"><i class="fas fa-image"></i></button>` : ''}
+                            <button onclick="deletePedido('${id}')" class="text-slate-500 hover:text-red-500"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>`;
                 }).join('');
 
-                table.innerHTML = html || '<tr><td colspan="6" class="p-10 text-center text-slate-500">Sem pedidos para este filtro.</td></tr>';
-                
-                // Atualiza contadores
                 document.getElementById('stat-total').innerText = stats.total;
                 document.getElementById('stat-pendente').innerText = stats.pendente;
                 document.getElementById('stat-analise').innerText = stats.analise;
                 document.getElementById('stat-concluido').innerText = stats.concluido;
                 document.getElementById('stat-rejeitado').innerText = stats.rejeitado;
 
-                // Atualiza Ranking
-                const sorted = Object.entries(ranking).sort((a,b) => b[1] - a[1]).slice(0, 5);
-                rankingList.innerHTML = sorted.map(([name, count]) => `
-                    <div class="flex justify-between items-center bg-white/5 p-2 rounded-xl text-[10px] font-bold">
-                        <span class="truncate pr-2">${name}</span>
-                        <span class="text-blue-500">${count}x</span>
-                    </div>`).join('');
-
-            } catch(e) { console.error("Erro Admin:", e); }
+                const sorted = Object.entries(ranking).sort((a,b) => b[1] - a[1]).slice(0, 10);
+                rankingList.innerHTML = sorted.map(([name, count]) => `<div class="flex justify-between items-center bg-white/5 p-2 rounded-xl text-[10px] font-bold"><span>${name}</span><span class="text-blue-500">${count}x</span></div>`).join('');
+            } catch(e) { console.error(e); }
         }
 
         async function trackRequests() {
-            const container = document.getElementById('track-results');
-            container.innerHTML = '<p class="text-center text-slate-500 animate-pulse">Carregando seus pedidos...</p>';
-            
-            try {
-                const res = await fetch(DATABASE_URL);
-                const data = await res.json();
-                
-                if(!data) {
-                    container.innerHTML = '<div class="glass p-10 rounded-3xl text-center text-slate-500">Você ainda não fez nenhum pedido.</div>';
-                    return;
-                }
-
-                const meusPedidos = Object.values(data)
-                    .filter(p => p.wpp === currentUserLogado.wpp)
-                    .reverse();
-
-                if(meusPedidos.length === 0) {
-                    container.innerHTML = '<div class="glass p-10 rounded-3xl text-center text-slate-500">Nenhum pedido encontrado para o seu número.</div>';
-                    return;
-                }
-
-                container.innerHTML = meusPedidos.map(p => {
-                    const st = p.status.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                    return `
-                        <div class="glass p-4 rounded-[28px] flex items-center gap-4 mb-4 border border-white/5">
-                            <img src="${p.img}" class="w-16 h-24 rounded-2xl object-cover shadow-2xl">
-                            <div class="flex-1">
-                                <h4 class="font-black text-white text-sm mb-1">${p.name}</h4>
-                                <p class="text-[10px] text-slate-500 mb-3">${p.date} às ${p.time || '--:--'}</p>
-                                <div class="inline-block status-badge status-${st}">${p.status}</div>
-                            </div>
-                        </div>`;
-                }).join('');
-            } catch(e) { container.innerHTML = "Erro ao carregar dados."; }
+            const res = await fetch(DATABASE_URL);
+            const data = await res.json() || {};
+            const list = Object.values(data).filter(p => p.wpp === currentUserLogado.wpp).reverse();
+            document.getElementById('track-results').innerHTML = list.map(p => {
+                const st = p.status.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                return `<div class="glass p-5 rounded-3xl flex items-center gap-4 border border-white/5 mb-4">
+                    <img src="${p.img}" class="w-14 h-20 rounded-xl object-cover">
+                    <div class="flex-1 text-left">
+                        <h4 class="font-bold text-white text-sm">${p.name}</h4>
+                        <div class="status-badge status-${st}">${p.status}</div>
+                    </div>
+                </div>`;
+            }).join('');
         }
 
-        // --- RESTO DAS FUNÇÕES SUPORTE ---
-        async function updateStatus(id, novoStatus) {
-            await fetch(`${DB_BASE}/pedidos/${id}.json`, { method: 'PATCH', body: JSON.stringify({ status: novoStatus }) });
-            loadAdmin();
-        }
-
-        async function deletePedido(id) {
-            Swal.fire({ title: 'Excluir?', text: "Esta ação não pode ser desfeita!", icon: 'warning', showCancelButton: true }).then(async (result) => {
-                if (result.isConfirmed) {
-                    await fetch(`${DB_BASE}/pedidos/${id}.json`, { method: 'DELETE' });
-                    loadAdmin();
-                }
-            });
-        }
-
-        function verFoto(img) { Swal.fire({ imageUrl: img, imageAlt: 'Anexo', showConfirmButton: false }); }
-
-        function filterAdmin(st) { 
-            currentFilter = st; 
-            document.querySelectorAll('.btn-filter').forEach(b => b.classList.remove('active-filter'));
-            document.getElementById(`f-${st}`).classList.add('active-filter');
-            loadAdmin(); 
-        }
-
-        async function loginApp() {
-            const u = document.getElementById('loginUser').value;
-            const p = document.getElementById('loginPass').value;
-            const res = await fetch(`${USERS_URL}.json`);
-            const users = await res.json() || {};
-            const user = Object.values(users).find(x => (x.username === u || x.wpp === u) && x.senha === p);
-            if(user) {
-                currentUserLogado = user; 
-                localStorage.setItem('vod_user', JSON.stringify(user)); 
-                ativarModoLogado();
-            } else { Swal.fire('Erro', 'Usuário ou senha incorretos', 'error'); }
-        }
-
-        function logoutApp() { localStorage.removeItem('vod_user'); location.reload(); }
-
-        // Pesquisa TMDB
         async function handleSearch() {
             const q = document.getElementById('searchInput').value;
             if(q.length < 3) return;
-            const res = await fetch(`https://api.themoviedb.org/3/search/multi?api_key=${API_KEY_TMDB}&language=pt-BR&query=${q}`);
+            const endpoint = searchMode === 'tv' ? `search/tv` : `search/multi`;
+            const res = await fetch(`https://api.themoviedb.org/3/${endpoint}?api_key=${API_KEY_TMDB}&language=pt-BR&query=${q}`);
             const data = await res.json();
             document.getElementById('grid-content').innerHTML = data.results.filter(i => i.poster_path).map(i => `
                 <div class="glass p-3 rounded-[24px]">
-                    <img src="https://image.tmdb.org/t/p/w500${i.poster_path}" class="w-full h-60 object-cover rounded-[20px] mb-3 shadow-xl">
-                    <h4 class="font-bold text-[11px] truncate px-1">${i.title || i.name}</h4>
-                    <button onclick="openModal('${(i.title || i.name).replace(/'/g, "")}', 'https://image.tmdb.org/t/p/w500${i.poster_path}')" class="w-full bg-blue-600/20 text-blue-400 py-3 rounded-xl text-[10px] font-black mt-3 hover:bg-blue-600 hover:text-white transition">SOLICITAR</button>
+                    <img src="https://image.tmdb.org/t/p/w500${i.poster_path}" class="w-full h-60 object-cover rounded-[20px] mb-3">
+                    <h4 class="font-bold text-[11px] truncate">${i.title || i.name}</h4>
+                    <button onclick="openModal('${(i.title || i.name).replace(/'/g, "")}', 'https://image.tmdb.org/t/p/w500${i.poster_path}')" class="w-full bg-blue-600/10 text-blue-400 py-2 rounded-xl text-[10px] font-black mt-3">SOLICITAR</button>
                 </div>`).join('');
         }
 
-        function openModal(name, img) { currentItem = { name, img }; document.getElementById('modalTitle').innerText = name; document.getElementById('modal-poster').innerHTML = `<img src="${img}" class="w-full h-full object-cover rounded-2xl">`; document.getElementById('modal').classList.remove('hidden'); }
-        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
-
         async function saveToFirebase() {
+            const photoFile = document.getElementById('userPhoto').files[0];
+            let photoBase64 = "";
+            if (photoFile) {
+                const reader = new FileReader();
+                reader.readAsDataURL(photoFile);
+                photoBase64 = await new Promise(resolve => { reader.onload = () => resolve(reader.result); });
+            }
             const agora = new Date();
             const data = { 
                 ...currentItem, 
@@ -254,14 +238,28 @@
                 status: 'Pendente', 
                 type: document.getElementById('requestType').value, 
                 obs: document.getElementById('userObs').value,
+                photo: photoBase64,
                 date: agora.toLocaleDateString('pt-BR'),
                 time: agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
             };
             await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify(data) });
-            Swal.fire('Sucesso!', 'Pedido enviado.', 'success'); 
-            closeModal();
-            trackRequests();
+            await dispararWhatsApp(ADMIN_WPP, `🚨 NOVO PEDIDO: ${currentUserLogado.nome} pediu ${currentItem.name}`);
+            Swal.fire('Enviado!', '', 'success'); closeModal(); trackRequests();
         }
+
+        // Funções de Auxílio
+        function openModal(name, img) { currentItem = { name, img }; document.getElementById('modalTitle').innerText = name; document.getElementById('modal-poster').innerHTML = `<img src="${img}" class="w-full h-full object-cover">`; document.getElementById('modal').classList.remove('hidden'); }
+        function closeModal() { document.getElementById('modal').classList.add('hidden'); }
+        function setSearchMode(m) { searchMode = m; handleSearch(); }
+        function filterAdmin(st) { currentFilter = st; loadAdmin(); }
+        function toggleAuthMode(m) { 
+            document.querySelectorAll('#page-auth > div > div').forEach(d => d.classList.add('hidden'));
+            if(m === 'otp') { document.getElementById('page-auth').classList.add('hidden'); document.getElementById('page-otp').classList.remove('hidden'); }
+            else { document.getElementById(`form-${m}`).classList.remove('hidden'); }
+        }
+        async function updateStatus(id, st) { await fetch(`${DB_BASE}/pedidos/${id}.json`, { method: 'PATCH', body: JSON.stringify({ status: st }) }); loadAdmin(); }
+        async function deletePedido(id) { if(confirm('Excluir?')) { await fetch(`${DB_BASE}/pedidos/${id}.json`, { method: 'DELETE' }); loadAdmin(); } }
+        function logoutApp() { localStorage.removeItem('vod_user'); location.reload(); }
     </script>
 
     <header id="main-header" class="container mx-auto flex flex-col md:flex-row justify-between items-center p-6 mb-4 gap-6 hidden">
@@ -276,54 +274,76 @@
 
     <main id="page-auth" class="container mx-auto max-w-md mt-16 p-4">
         <div class="glass p-10 rounded-[40px] text-center border border-white/10">
-            <h2 class="text-4xl font-black text-blue-500 mb-8 uppercase">Login</h2>
-            <div class="space-y-4">
+            <h2 class="text-4xl font-black text-blue-500 mb-8 uppercase">Acesso</h2>
+            <div id="form-login" class="space-y-4">
                 <input type="text" id="loginUser" placeholder="Usuário ou WhatsApp" class="w-full input-dark p-4 rounded-2xl">
                 <input type="password" id="loginPass" placeholder="Senha" class="w-full input-dark p-4 rounded-2xl">
-                <button onclick="loginApp()" class="w-full py-4 bg-blue-600 rounded-2xl font-black shadow-xl hover:scale-105 transition">ENTRAR</button>
+                <button onclick="loginApp()" class="w-full py-4 bg-blue-600 rounded-2xl font-black">ENTRAR</button>
+                <button onclick="toggleAuthMode('register')" class="text-xs text-blue-400 font-bold mt-4">Criar conta</button>
             </div>
+            </div>
+    </main>
+
+    <main id="page-otp" class="container mx-auto max-w-md mt-20 p-4 hidden text-center">
+        <div class="glass p-10 rounded-[40px]">
+            <i class="fab fa-whatsapp text-6xl text-green-500 mb-6"></i>
+            <h2 class="text-2xl font-black mb-2 text-white">Código de Verificação</h2>
+            <input type="text" id="otpCode" placeholder="000000" class="w-full input-dark p-4 rounded-2xl text-center text-3xl font-black">
+            <button onclick="verifyOTP()" class="w-full py-4 bg-green-600 rounded-2xl font-black mt-8">VERIFICAR</button>
         </div>
     </main>
 
     <main id="page-cliente" class="container mx-auto max-w-6xl p-6 hidden">
         <div class="glass p-8 rounded-[35px] mb-8">
-            <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="Pesquisar filme ou série..." class="w-full input-dark p-5 rounded-2xl text-lg">
+            <div class="flex gap-4 mb-6">
+                <button onclick="setSearchMode('movie')" class="px-6 py-2 rounded-full text-xs font-black bg-blue-600">FILMES/SÉRIES</button>
+                <button onclick="setSearchMode('tv')" class="px-6 py-2 rounded-full text-xs font-black bg-slate-800">CANAIS DE TV</button>
+            </div>
+            <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="Pesquisar conteúdo..." class="w-full input-dark p-5 rounded-2xl">
         </div>
         <div id="grid-content" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6"></div>
     </main>
 
-    <main id="page-status" class="container mx-auto max-w-2xl p-6 hidden text-center">
-        <h2 class="text-3xl font-black mb-8">MEUS PEDIDOS</h2>
-        <div id="track-results" class="space-y-4"></div>
+    <main id="page-status" class="container mx-auto max-w-2xl p-6 hidden">
+        <h2 class="text-3xl font-black mb-8 text-center uppercase">Meus Pedidos</h2>
+        <div id="track-results"></div>
     </main>
 
     <main id="page-admin" class="container mx-auto max-w-7xl p-6 hidden">
-        <div id="admin-stats-container" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div class="flex justify-end mb-4 gap-4">
+            <div class="flex items-center gap-2 glass px-4 py-2 rounded-full border border-white/10 text-[10px] font-black">
+                <div id="vps-dot" class="w-3 h-3 rounded-full bg-slate-500"></div>
+                <span id="vps-text" class="uppercase text-slate-400">Verificando VPS...</span>
+            </div>
+        </div>
+
+        <div class="glass p-6 rounded-3xl mb-8">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xs font-black text-white uppercase">WhatsApp VPS</h3>
+                <button onclick="getQRCode()" class="px-4 py-2 bg-blue-600 rounded-xl text-[10px] font-black">GERAR QR CODE</button>
+            </div>
+            <div id="qrcode-container" class="bg-white p-4 rounded-2xl w-48 mx-auto hidden"><img id="qrcode-img" class="w-full"></div>
+            <p id="wpp-status-msg" class="text-center text-[10px] text-slate-500 font-bold uppercase mt-2">Aguardando...</p>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
             <div class="stat-card"><p class="text-[10px] font-bold text-slate-400 uppercase">Total</p><h3 id="stat-total" class="text-3xl font-black">0</h3></div>
-            <div class="stat-card"><p class="text-[10px] font-bold text-amber-500 uppercase">Pendentes</p><h3 id="stat-pendente" class="text-3xl font-black">0</h3></div>
-            <div class="stat-card"><p class="text-[10px] font-bold text-blue-500 uppercase">Análise</p><h3 id="stat-analise" class="text-3xl font-black">0</h3></div>
-            <div class="stat-card"><p class="text-[10px] font-bold text-green-500 uppercase">Concluídos</p><h3 id="stat-concluido" class="text-3xl font-black">0</h3></div>
-            <div class="stat-card"><p class="text-[10px] font-bold text-red-500 uppercase">Rejeitados</p><h3 id="stat-rejeitado" class="text-3xl font-black">0</h3></div>
+            <div class="stat-card border-b-4 border-amber-500"><p class="text-[10px] font-bold text-amber-500 uppercase">Pendentes</p><h3 id="stat-pendente" class="text-3xl font-black">0</h3></div>
+            <div class="stat-card border-b-4 border-blue-500"><p class="text-[10px] font-bold text-blue-500 uppercase">Análise</p><h3 id="stat-analise" class="text-3xl font-black">0</h3></div>
+            <div class="stat-card border-b-4 border-green-500"><p class="text-[10px] font-bold text-green-500 uppercase">Concluídos</p><h3 id="stat-concluido" class="text-3xl font-black">0</h3></div>
+            <div class="stat-card border-b-4 border-red-500"><p class="text-[10px] font-bold text-red-500 uppercase">Rejeitados</p><h3 id="stat-rejeitado" class="text-3xl font-black">0</h3></div>
         </div>
 
         <div class="grid lg:grid-cols-4 gap-8">
-            <div class="lg:col-span-1 space-y-6">
-                <div class="glass p-6 rounded-3xl">
-                    <h3 class="text-xs font-black text-blue-400 uppercase mb-4">Mais Pedidos</h3>
-                    <div id="ranking-list" class="space-y-2"></div>
-                </div>
-            </div>
+            <div class="lg:col-span-1"><div class="glass p-6 rounded-3xl"><h3 class="text-xs font-black text-blue-400 uppercase mb-4">Top 10</h3><div id="ranking-list" class="space-y-2"></div></div></div>
             <div class="lg:col-span-3">
-                <div class="flex flex-wrap gap-2 mb-6">
-                    <button onclick="filterAdmin('Todos')" class="btn-filter active-filter" id="f-Todos">Todos</button>
-                    <button onclick="filterAdmin('Pendente')" class="btn-filter" id="f-Pendente">Pendente</button>
-                    <button onclick="filterAdmin('Análise')" class="btn-filter" id="f-Análise">Análise</button>
-                    <button onclick="filterAdmin('Concluído')" class="btn-filter" id="f-Concluído">Concluído</button>
-                    <button onclick="filterAdmin('Rejeitado')" class="btn-filter" id="f-Rejeitado">Rejeitados</button>
+                <div class="flex gap-2 mb-6">
+                    <button onclick="filterAdmin('Todos')" class="btn-filter" id="f-Todos">Todos</button>
+                    <button onclick="filterAdmin('Pendente')" class="btn-filter" id="f-Pendente">Pendentes</button>
                 </div>
-                <div class="glass rounded-3xl overflow-hidden border border-white/5">
-                    <table class="w-full text-left border-collapse">
-                        <thead class="bg-slate-900/80 text-[10px] uppercase text-slate-500 font-black">
+                <div class="glass rounded-3xl overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-900 text-[10px] uppercase text-slate-500 font-black">
                             <tr><th class="p-4">Conteúdo</th><th class="p-4">Usuário</th><th class="p-4">Data</th><th class="p-4">Status</th><th class="p-4 text-center">Obs</th><th class="p-4 text-center">Ação</th></tr>
                         </thead>
                         <tbody id="admin-table" class="divide-y divide-white/5"></tbody>
@@ -335,18 +355,16 @@
 
     <div id="modal" class="fixed inset-0 bg-black/95 hidden flex items-center justify-center p-4 z-50">
         <div class="glass rounded-[40px] max-w-md w-full p-8 text-center border border-white/10">
-            <div id="modal-poster" class="w-32 h-44 bg-slate-800 rounded-2xl mb-6 mx-auto overflow-hidden shadow-2xl"></div>
+            <div id="modal-poster" class="w-32 h-44 bg-slate-800 rounded-2xl mb-6 mx-auto overflow-hidden"></div>
             <h3 class="text-xl font-black mb-6" id="modalTitle"></h3>
             <div class="space-y-4 text-left text-xs">
-                <select id="requestType" class="w-full input-dark p-4 rounded-2xl">
-                    <option value="🍿 Solicitar adição">🍿 Solicitar adição</option>
-                    <option value="🎬 Solicitar atualização">🎬 Solicitar atualização</option>
-                    <option value="👨🏻‍🔧 Relatar um problema">👨🏻‍🔧 Relatar um problema</option>
-                </select>
+                <select id="requestType" class="w-full input-dark p-4 rounded-2xl"><option>🍿 Solicitar adição</option><option>🎬 Solicitar atualização</option><option>👨🏻‍🔧 Relatar um problema</option></select>
+                <label class="font-bold text-slate-500 uppercase ml-2">Anexar Print (Opcional)</label>
+                <input type="file" id="userPhoto" accept="image/*" class="w-full input-dark p-3 rounded-2xl">
                 <textarea id="userObs" placeholder="Algum detalhe extra?" class="w-full input-dark p-4 rounded-2xl h-24"></textarea>
             </div>
-            <button onclick="saveToFirebase()" class="w-full py-4 bg-blue-600 rounded-2xl font-black mt-6 hover:bg-blue-500">ENVIAR AGORA</button>
-            <button onclick="closeModal()" class="mt-4 text-xs text-slate-500 font-bold uppercase">Cancelar</button>
+            <button onclick="saveToFirebase()" class="w-full py-4 bg-blue-600 rounded-2xl font-black mt-6">ENVIAR</button>
+            <button onclick="closeModal()" class="mt-4 text-xs text-slate-500 font-bold uppercase">Fechar</button>
         </div>
     </div>
 
