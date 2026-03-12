@@ -29,6 +29,7 @@
         .active-filter { border: 2px solid white !important; transform: scale(1.05); box-shadow: 0 0 15px rgba(255,255,255,0.2); }
 
         .stat-card { background: linear-gradient(145deg, #1e293b, #0f172a); border: 1px solid rgba(255,255,255,0.05); border-radius: 24px; padding: 20px; }
+        .swal2-popup { background: #0f172a !important; color: #fff !important; border: 1px solid #334155 !important; }
     </style>
 </head>
 <body>
@@ -51,13 +52,13 @@
 
         window.onload = () => {
             const saved = localStorage.getItem('vod_user');
+            const lastPage = sessionStorage.getItem('last_page');
             if(saved) { 
                 currentUserLogado = JSON.parse(saved); 
-                ativarModoLogado(sessionStorage.getItem('last_page') || 'cliente'); 
+                ativarModoLogado(lastPage || 'cliente'); 
             }
         };
 
-        // --- SISTEMA DE WHATSAPP ---
         async function dispararWhatsApp(numero, mensagem) {
             const numLimpo = numero.replace(/\D/g, '');
             const finalNum = numLimpo.startsWith('55') ? numLimpo : '55' + numLimpo;
@@ -71,6 +72,31 @@
             } catch (e) { return false; }
         }
 
+        async function checkVPSStatus() {
+            try {
+                const res = await fetch(`${DB_BASE}/status_vps.json`);
+                const data = await res.json();
+                const dot = document.getElementById('vps-dot');
+                const text = document.getElementById('vps-text');
+                if (!dot || !text) return;
+                if (!data || !data.lastSeen) { updateVPSUI(dot, text, false); return; }
+                const agora = Date.now();
+                const diferenca = (agora - data.lastSeen) / 1000;
+                updateVPSUI(dot, text, (diferenca <= 90));
+            } catch (e) { console.error("Erro VPS:", e); }
+        }
+        function updateVPSUI(dot, text, isOnline) {
+            if (isOnline) {
+                dot.className = "w-3 h-3 rounded-full bg-green-500 animate-pulse";
+                text.innerText = "VPS Conectada";
+                text.className = "text-[10px] font-black uppercase text-green-400";
+            } else {
+                dot.className = "w-3 h-3 rounded-full bg-red-500";
+                text.innerText = "VPS Desconectada";
+                text.className = "text-[10px] font-black uppercase text-red-400";
+            }
+        }
+        
         async function getQRCode() {
             const container = document.getElementById('qrcode-container');
             const img = document.getElementById('qrcode-img');
@@ -86,126 +112,192 @@
                     msg.innerText = "Aponte o celular para a tela";
                 } else if (data.connected) {
                     msg.innerText = "WhatsApp já está conectado! ✅";
+                } else {
+                    msg.innerText = "Erro ao gerar. Verifique se a API na VPS está rodando.";
                 }
-            } catch (e) { msg.innerText = "Erro ao conectar com a VPS."; }
+            } catch (e) {
+                msg.innerText = "Erro: VPS Offline ou API não encontrada.";
+            }
         }
 
-        async function checkVPSStatus() {
-            try {
-                const res = await fetch(`${DB_BASE}/status_vps.json`);
-                const data = await res.json();
-                const dot = document.getElementById('vps-dot');
-                const text = document.getElementById('vps-text');
-                if (!dot || !text) return;
-                const isOnline = (data && data.lastSeen && (Date.now() - data.lastSeen) / 1000 <= 90);
-                dot.className = isOnline ? "w-3 h-3 rounded-full bg-green-500 animate-pulse" : "w-3 h-3 rounded-full bg-red-500";
-                text.innerText = isOnline ? "VPS Conectada" : "VPS Desconectada";
-            } catch (e) {}
-        }
+        setInterval(() => {
+            if(!document.getElementById('page-admin').classList.contains('hidden')) checkVPSStatus();
+        }, 10000);
+    </script>
 
-        // --- NAVEGAÇÃO E AUTH ---
-        function ativarModoLogado(page = 'cliente') {
-            document.getElementById('page-auth').classList.add('hidden');
-            document.getElementById('main-header').classList.remove('hidden');
-            if(currentUserLogado.wpp === ADMIN_WPP) document.getElementById('btn-nav-admin').classList.remove('hidden');
-            showPage(page);
-        }
+    <header id="main-header" class="container mx-auto flex flex-col md:flex-row justify-between items-center p-6 mb-4 gap-6 hidden">
+        <h1 class="text-3xl font-black text-blue-500">PORTAL<span class="text-white">VOD</span></h1>
+        <nav class="flex gap-2 glass p-2 rounded-2xl">
+            <button onclick="showPage('cliente')" class="px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition">Início</button>
+            <button onclick="showPage('status')" class="px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition">Meus Pedidos</button>
+            <button id="btn-nav-admin" onclick="showPage('admin')" class="px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hidden">Admin</button>
+            <button onclick="logoutApp()" class="px-4 py-2 rounded-xl text-xs font-bold text-red-400">Sair</button>
+        </nav>
+    </header>
 
-        function showPage(p) {
-            document.querySelectorAll('main').forEach(m => m.classList.add('hidden'));
-            document.getElementById(`page-${p}`).classList.remove('hidden');
-            sessionStorage.setItem('last_page', p);
-            if(p === 'admin') { loadAdmin(); checkVPSStatus(); }
-            if(p === 'status') trackRequests();
-        }
+    <main id="page-auth" class="container mx-auto max-w-md mt-16 p-4">
+        <div class="glass p-10 rounded-[40px] text-center border border-white/10">
+            <h2 class="text-4xl font-black text-blue-500 mb-8">LOGIN</h2>
+            <div id="form-login" class="space-y-4">
+                <input type="text" id="loginUser" placeholder="Usuário ou WhatsApp" class="w-full input-dark p-4 rounded-2xl">
+                <input type="password" id="loginPass" placeholder="Senha" class="w-full input-dark p-4 rounded-2xl">
+                <button onclick="loginApp()" class="w-full py-4 bg-blue-600 rounded-2xl font-black shadow-xl">ENTRAR</button>
+                <div class="flex justify-between mt-4">
+                    <button onclick="toggleAuthMode('forgot')" class="text-xs text-slate-500">Esqueceu sua senha?</button>
+                    <button onclick="toggleAuthMode('register')" class="text-xs text-blue-400 font-bold">Criar conta</button>
+                </div>
+            </div>
+            <div id="form-register" class="space-y-4 hidden">
+                <input type="text" id="regUser" placeholder="Usuário" class="w-full input-dark p-4 rounded-2xl">
+                <input type="text" id="regName" placeholder="Nome Completo" class="w-full input-dark p-4 rounded-2xl">
+                <input type="tel" id="regWpp" placeholder="WhatsApp" class="w-full input-dark p-4 rounded-2xl">
+                <input type="password" id="regPass" placeholder="Senha" class="w-full input-dark p-4 rounded-2xl">
+                <button onclick="registerApp()" class="w-full py-4 bg-green-600 rounded-2xl font-black">CADASTRAR</button>
+                <button onclick="toggleAuthMode('login')" class="text-xs text-slate-400 block mx-auto">Voltar</button>
+            </div>
+            <div id="form-forgot" class="space-y-4 hidden text-left">
+                <h3 class="text-sm font-bold text-yellow-500 mb-2">Recuperar Acesso</h3>
+                <input type="tel" id="forgotWpp" placeholder="WhatsApp (apenas números)" class="w-full input-dark p-4 rounded-2xl">
+                <button onclick="forgotPassword()" class="w-full py-4 bg-yellow-600 rounded-2xl font-black text-black mt-2">ENVIAR CÓDIGO</button>
+                <button onclick="toggleAuthMode('login')" class="text-xs text-slate-400 block mx-auto mt-4">Voltar</button>
+            </div>
+        </div>
+    </main>
 
-        async function loginApp() {
-            const userInp = document.getElementById('loginUser').value.trim();
-            const passInp = document.getElementById('loginPass').value;
-            const res = await fetch(`${USERS_URL}.json`);
-            const users = await res.json() || {};
-            const user = Object.values(users).find(u => (u.username === userInp || u.wpp === userInp) && u.senha === passInp);
+    <main id="page-otp" class="container mx-auto max-w-md mt-20 p-4 hidden text-center">
+        <div class="glass p-10 rounded-[40px]">
+            <i class="fab fa-whatsapp text-6xl text-green-500 mb-6"></i>
+            <h2 class="text-2xl font-black mb-2 text-white">Valide o Código</h2>
+            <input type="text" id="otpCode" placeholder="000000" class="w-full input-dark p-4 rounded-2xl text-center text-3xl font-black tracking-widest">
+            <button onclick="verifyOTP()" class="w-full py-4 bg-green-600 rounded-2xl font-black mt-8">VERIFICAR</button>
+            <button onclick="reenviarOTP()" class="mt-4 text-xs text-blue-400 underline">Reenviar código</button>
+        </div>
+    </main>
+
+    <main id="page-cliente" class="container mx-auto max-w-6xl p-6 hidden">
+        <div class="glass p-8 rounded-[35px] mb-8">
+            <div class="flex gap-4 mb-6">
+                <button onclick="setSearchMode('movie')" id="btn-movie" class="px-6 py-2 rounded-full text-xs font-black bg-blue-600">FILMES/SÉRIES</button>
+                <button onclick="setSearchMode('tv')" id="btn-tv" class="px-6 py-2 rounded-full text-xs font-black bg-slate-800">CANAIS DE TV</button>
+            </div>
+            <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="Pesquisar conteúdo..." class="w-full input-dark p-5 rounded-2xl">
+        </div>
+        <div id="grid-content" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6"></div>
+    </main>
+
+    <main id="page-status" class="container mx-auto max-w-2xl p-6 hidden">
+        <h2 class="text-3xl font-black mb-8">Meus Pedidos</h2>
+        <div id="track-results" class="space-y-4"></div>
+    </main>
+
+    <main id="page-admin" class="container mx-auto max-w-7xl p-6 hidden">
+        <div class="flex justify-end mb-4">
+            <div id="vps-indicator" class="flex items-center gap-2 glass px-4 py-2 rounded-full border border-white/10">
+                <div id="vps-dot" class="w-3 h-3 rounded-full bg-slate-500"></div>
+                <span id="vps-text" class="text-[10px] font-black uppercase text-slate-400">Verificando VPS...</span>
+            </div>
+        </div>
+
+        <div id="wpp-connection-area" class="glass p-6 rounded-3xl mb-8 border border-blue-500/20">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xs font-black text-white uppercase">Conexão WhatsApp</h3>
+                <button onclick="getQRCode()" class="px-4 py-2 bg-blue-600 rounded-xl text-[10px] font-black">GERAR NOVO QR CODE</button>
+            </div>
+            <div id="qrcode-container" class="flex flex-col items-center justify-center p-4 bg-white rounded-2xl min-h-[250px] w-64 mx-auto hidden">
+                <img id="qrcode-img" src="" alt="QR Code WhatsApp" class="w-full">
+                <p class="text-black text-[10px] font-bold mt-2">Escaneie para conectar</p>
+            </div>
+            <p id="wpp-status-msg" class="text-center text-[10px] text-slate-400 font-bold uppercase">Aguardando comando...</p>
+        </div>
+
+        <div id="admin-stats-container" class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+            <div class="stat-card"><p class="text-[10px] font-bold text-slate-400 uppercase">Total</p><h3 id="stat-total" class="text-3xl font-black text-white">0</h3></div>
+            <div class="stat-card border-b-4 border-amber-600"><p class="text-[10px] font-bold text-amber-500 uppercase">Pendentes</p><h3 id="stat-pendente" class="text-3xl font-black text-white">0</h3></div>
+            <div class="stat-card border-b-4 border-blue-600"><p class="text-[10px] font-bold text-blue-500 uppercase">Análise</p><h3 id="stat-analise" class="text-3xl font-black text-white">0</h3></div>
+            <div class="stat-card border-b-4 border-green-600"><p class="text-[10px] font-bold text-green-500 uppercase">Concluídos</p><h3 id="stat-concluido" class="text-3xl font-black text-white">0</h3></div>
+            <div class="stat-card border-b-4 border-red-600"><p class="text-[10px] font-bold text-red-500 uppercase">Rejeitados</p><h3 id="stat-rejeitado" class="text-3xl font-black text-white">0</h3></div>
+        </div>
+
+        <div class="grid lg:grid-cols-4 gap-8">
+            <div class="lg:col-span-1 space-y-6">
+                <div class="glass p-6 rounded-3xl"><h3 class="text-xs font-black text-blue-400 uppercase mb-4">Top 10</h3><div id="ranking-list" class="space-y-2"></div></div>
+                <button onclick="zerarRanking()" class="w-full py-2 bg-red-900/30 text-red-500 rounded-xl text-[10px] font-bold uppercase">Zerar Ranking</button>
+            </div>
+            <div class="lg:col-span-3">
+                <div class="flex flex-wrap gap-2 mb-6">
+                    <button onclick="filterAdmin('Todos')" class="btn-filter active-filter" id="f-Todos">Todos</button>
+                    <button onclick="filterAdmin('Pendente')" class="btn-filter" id="f-Pendente">Pendente</button>
+                    <button onclick="filterAdmin('Análise')" class="btn-filter" id="f-Análise">Análise</button>
+                    <button onclick="filterAdmin('Concluído')" class="btn-filter" id="f-Concluído">Concluído</button>
+                    <button onclick="filterAdmin('Rejeitado')" class="btn-filter" id="f-Rejeitado">Rejeitados</button>
+                </div>
+                <div class="glass rounded-3xl overflow-hidden">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-900/80 text-[10px] uppercase text-slate-500 font-black">
+                            <tr><th class="p-4">Conteúdo</th><th class="p-4">Usuário / Wpp</th><th class="p-4">Data / Hora</th><th class="p-4">Status</th><th class="p-4 text-center">Obs</th><th class="p-4 text-center">Ação</th></tr>
+                        </thead>
+                        <tbody id="admin-table" class="divide-y divide-white/5"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="modal" class="fixed inset-0 bg-black/95 hidden flex items-center justify-center p-4 z-50">
+        <div class="glass rounded-[40px] max-w-md w-full p-8 text-center border border-white/10">
+            <div id="modal-poster" class="w-32 h-44 bg-slate-800 rounded-2xl mb-6 mx-auto overflow-hidden"></div>
+            <h3 class="text-xl font-black mb-6" id="modalTitle"></h3>
+            <div class="space-y-4 text-left text-xs">
+                <label class="font-bold text-slate-500 uppercase ml-2">O que deseja?</label>
+                <select id="requestType" class="w-full input-dark p-4 rounded-2xl">
+                    <option value="🍿 Solicitar adição">🍿 Solicitar adição</option>
+                    <option value="🎬 Solicitar atualização">🎬 Solicitar atualização</option>
+                    <option value="👨🏻‍🔧 Relatar um problema">👨🏻‍🔧 Relatar um problema</option>
+                </select>
+                <label class="font-bold text-slate-500 uppercase ml-2">Anexar Print/Foto</label>
+                <input type="file" id="userPhoto" accept="image/*" class="w-full input-dark p-3 rounded-2xl">
+                <textarea id="userObs" placeholder="Algum detalhe extra?" class="w-full input-dark p-4 rounded-2xl h-24"></textarea>
+            </div>
+            <button onclick="saveToFirebase()" class="w-full py-4 bg-blue-600 rounded-2xl font-black mt-6">ENVIAR</button>
+            <button onclick="closeModal()" class="mt-4 text-xs text-slate-500 font-bold uppercase">Fechar</button>
+        </div>
+    </div>
+
+    <script>
+        async function forgotPassword() {
+            const wpp = document.getElementById('forgotWpp').value.replace(/\D/g,'');
+            if(!wpp) return Swal.fire('Erro', 'Digite seu WhatsApp', 'warning');
+            const res = await fetch(`${USERS_URL}/${wpp}.json`);
+            const user = await res.json();
             if(user) {
-                if(!user.verificado) { 
-                    tempWppForOTP = user.wpp; 
-                    reenviarOTP(); 
-                    toggleAuthMode('otp'); 
-                    return; 
+                isPasswordReset = true;
+                tempWppForOTP = wpp;
+                const code = Math.floor(100000 + Math.random() * 900000).toString();
+                await fetch(`${USERS_URL}/${wpp}.json`, { method: 'PATCH', body: JSON.stringify({ codigo: code }) });
+                const sent = await dispararWhatsApp(wpp, `Recuperação Portal VOD. Código: ${code}`);
+                if(sent) {
+                    document.getElementById('page-auth').classList.add('hidden');
+                    document.getElementById('page-otp').classList.remove('hidden');
+                } else { Swal.fire('Erro', 'Erro ao enviar. Tente novamente.', 'error'); }
+            } else { Swal.fire('Erro', 'WhatsApp não encontrado!', 'error'); }
+        }
+
+        async function verifyOTP() {
+            const codeInp = document.getElementById('otpCode').value;
+            const res = await fetch(`${USERS_URL}/${tempWppForOTP}.json`);
+            const user = await res.json();
+            if(user && user.codigo === codeInp) {
+                if(isPasswordReset) {
+                    const { value: newPass } = await Swal.fire({ title: 'Nova Senha', input: 'password', inputLabel: 'Defina sua senha' });
+                    if(newPass) {
+                        await fetch(`${USERS_URL}/${tempWppForOTP}.json`, { method: 'PATCH', body: JSON.stringify({ senha: newPass, verificado: true }) });
+                        Swal.fire('Sucesso!', 'Senha alterada.', 'success').then(() => location.reload());
+                    }
+                } else {
+                    await fetch(`${USERS_URL}/${tempWppForOTP}.json`, { method: 'PATCH', body: JSON.stringify({ verificado: true }) });
+                    currentUserLogado = user; localStorage.setItem('vod_user', JSON.stringify(user)); ativarModoLogado();
                 }
-                currentUserLogado = user; 
-                localStorage.setItem('vod_user', JSON.stringify(user)); 
-                ativarModoLogado();
-            } else { Swal.fire('Erro', 'Dados incorretos', 'error'); }
-        }
-
-        // --- CARREGAMENTO DE DADOS (ADMIN E CLIENTE) ---
-        async function loadAdmin() {
-            const table = document.getElementById('admin-table');
-            const rankingList = document.getElementById('ranking-list');
-            try {
-                const res = await fetch(DATABASE_URL);
-                const data = await res.json() || {};
-                
-                let stats = { total: 0, pendente: 0, analise: 0, concluido: 0, rejeitado: 0 };
-                let ranking = {};
-
-                table.innerHTML = Object.keys(data).reverse().map(id => {
-                    const p = data[id];
-                    stats.total++;
-                    const st = p.status.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                    if(st === 'pendente') stats.pendente++;
-                    else if(st === 'analise') stats.analise++;
-                    else if(st === 'concluido') stats.concluido++;
-                    else if(st === 'rejeitado') stats.rejeitado++;
-
-                    ranking[p.name] = (ranking[p.name] || 0) + 1;
-                    if (currentFilter !== 'Todos' && p.status !== currentFilter) return '';
-
-                    return `<tr>
-                        <td class="p-4"><div class="flex items-center gap-3"><img src="${p.img}" class="w-10 h-14 rounded-lg object-cover"><div class="text-[11px] font-bold">${p.name}</div></div></td>
-                        <td class="p-4 text-[10px] text-slate-400 font-bold">${p.user}<br><span class="text-blue-400">${p.wpp}</span></td>
-                        <td class="p-4 text-[10px] text-slate-400">${p.date}<br>${p.time || '--:--'}</td>
-                        <td class="p-4">
-                            <select onchange="updateStatus('${id}', this.value)" class="bg-slate-800 text-[10px] p-2 rounded-lg">
-                                <option value="Pendente" ${p.status==='Pendente'?'selected':''}>Pendente</option>
-                                <option value="Análise" ${p.status==='Análise'?'selected':''}>Análise</option>
-                                <option value="Concluído" ${p.status==='Concluído'?'selected':''}>Concluído</option>
-                                <option value="Rejeitado" ${p.status==='Rejeitado'?'selected':''}>Rejeitado</option>
-                            </select>
-                        </td>
-                        <td class="p-4 text-center">${p.obs ? `<button onclick="Swal.fire('Obs', '${p.obs}', 'info')" class="text-amber-400"><i class="fas fa-comment-dots"></i></button>` : '-'}</td>
-                        <td class="p-4 text-center space-x-2">
-                            ${p.photo ? `<button onclick="Swal.fire({imageUrl: '${p.photo}', showConfirmButton: false})" class="text-blue-400"><i class="fas fa-image"></i></button>` : ''}
-                            <button onclick="deletePedido('${id}')" class="text-slate-500 hover:text-red-500"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>`;
-                }).join('');
-
-                document.getElementById('stat-total').innerText = stats.total;
-                document.getElementById('stat-pendente').innerText = stats.pendente;
-                document.getElementById('stat-analise').innerText = stats.analise;
-                document.getElementById('stat-concluido').innerText = stats.concluido;
-                document.getElementById('stat-rejeitado').innerText = stats.rejeitado;
-
-                const sorted = Object.entries(ranking).sort((a,b) => b[1] - a[1]).slice(0, 10);
-                rankingList.innerHTML = sorted.map(([name, count]) => `<div class="flex justify-between items-center bg-white/5 p-2 rounded-xl text-[10px] font-bold"><span>${name}</span><span class="text-blue-500">${count}x</span></div>`).join('');
-            } catch(e) { console.error(e); }
-        }
-
-        async function trackRequests() {
-            const res = await fetch(DATABASE_URL);
-            const data = await res.json() || {};
-            const list = Object.values(data).filter(p => p.wpp === currentUserLogado.wpp).reverse();
-            document.getElementById('track-results').innerHTML = list.map(p => {
-                const st = p.status.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                return `<div class="glass p-5 rounded-3xl flex items-center gap-4 border border-white/5 mb-4">
-                    <img src="${p.img}" class="w-14 h-20 rounded-xl object-cover">
-                    <div class="flex-1 text-left">
-                        <h4 class="font-bold text-white text-sm">${p.name}</h4>
-                        <div class="status-badge status-${st}">${p.status}</div>
-                    </div>
-                </div>`;
-            }).join('');
+            } else { Swal.fire('Erro', 'Código Inválido', 'error'); }
         }
 
         async function handleSearch() {
@@ -231,6 +323,9 @@
                 photoBase64 = await new Promise(resolve => { reader.onload = () => resolve(reader.result); });
             }
             const agora = new Date();
+            const dataStr = agora.toLocaleDateString('pt-BR');
+            const horaStr = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
             const data = { 
                 ...currentItem, 
                 user: currentUserLogado.nome, 
@@ -239,134 +334,134 @@
                 type: document.getElementById('requestType').value, 
                 obs: document.getElementById('userObs').value,
                 photo: photoBase64,
-                date: agora.toLocaleDateString('pt-BR'),
-                time: agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                date: dataStr,
+                time: horaStr
             };
             await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify(data) });
-            await dispararWhatsApp(ADMIN_WPP, `🚨 NOVO PEDIDO: ${currentUserLogado.nome} pediu ${currentItem.name}`);
+            await dispararWhatsApp(ADMIN_WPP, `🚨 PEDIDO: ${currentUserLogado.nome} solicitou ${currentItem.name}`);
             Swal.fire('Enviado!', '', 'success'); closeModal(); trackRequests();
         }
 
-        // Funções de Auxílio
+        async function loadAdmin() {
+            checkVPSStatus();
+            const table = document.getElementById('admin-table');
+            const rankingList = document.getElementById('ranking-list');
+            try {
+                const res = await fetch(DATABASE_URL);
+                const data = await res.json() || {};
+                processarDadosAdmin(data, table, rankingList);
+            } catch(e) { console.error("Erro ao buscar dados:", e); }
+        }
+
+        function processarDadosAdmin(data, table, rankingList) {
+            let stats = { total: 0, pendente: 0, analise: 0, concluido: 0, rejeitado: 0 };
+            let ranking = {};
+
+            table.innerHTML = Object.keys(data).reverse().map(id => {
+                const p = data[id];
+                stats.total++;
+                const st = p.status.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                if(st === 'pendente') stats.pendente++;
+                else if(st === 'analise') stats.analise++;
+                else if(st === 'concluido') stats.concluido++;
+                else if(st === 'rejeitado') stats.rejeitado++;
+                
+                ranking[p.name] = (ranking[p.name] || 0) + 1;
+                if (currentFilter !== 'Todos' && p.status !== currentFilter) return '';
+
+                return `<tr>
+                    <td class="p-4"><div class="flex items-center gap-3"><img src="${p.img}" class="w-10 h-14 rounded-lg object-cover"><div class="text-[11px] font-bold">${p.name}</div></div></td>
+                    <td class="p-4 text-[10px] text-slate-400 font-bold">${p.user}<br><span class="text-blue-400">${p.wpp}</span></td>
+                    <td class="p-4 text-[10px] text-slate-400">${p.date}<br>${p.time || '--:--'}</td>
+                    <td class="p-4">
+                        <select onchange="updateStatus('${id}', this.value, '${p.wpp}', '${p.name}')" class="bg-slate-800 text-[10px] p-2 rounded-lg">
+                            <option value="Pendente" ${p.status==='Pendente'?'selected':''}>Pendente</option>
+                            <option value="Análise" ${p.status==='Análise'?'selected':''}>Análise</option>
+                            <option value="Concluído" ${p.status==='Concluído'?'selected':''}>Concluído</option>
+                            <option value="Rejeitado" ${p.status==='Rejeitado'?'selected':''}>Rejeitado</option>
+                        </select>
+                    </td>
+                    <td class="p-4 text-center">${p.obs ? `<button onclick="verObs('${p.obs.replace(/'/g, "\\'")}')" class="text-amber-400"><i class="fas fa-comment-dots text-lg"></i></button>` : '-'}</td>
+                    <td class="p-4 text-center space-x-2">
+                        ${p.photo ? `<button onclick="verFoto('${p.photo}')" class="text-blue-400"><i class="fas fa-image"></i></button>` : ''}
+                        <button onclick="deletePedido('${id}')" class="text-slate-500 hover:text-red-500"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>`;
+            }).join('');
+
+            document.getElementById('stat-total').innerText = stats.total;
+            document.getElementById('stat-pendente').innerText = stats.pendente;
+            document.getElementById('stat-analise').innerText = stats.analise;
+            document.getElementById('stat-concluido').innerText = stats.concluido;
+            document.getElementById('stat-rejeitado').innerText = stats.rejeitado;
+
+            const sorted = Object.entries(ranking).sort((a,b) => b[1] - a[1]).slice(0, 10);
+            rankingList.innerHTML = sorted.map(([name, count]) => `<div class="flex justify-between items-center bg-white/5 p-2 rounded-xl text-[10px] font-bold"><span>${name}</span><span class="text-blue-500">${count}x</span></div>`).join('');
+        }
+
+        function verObs(texto) { Swal.fire({ title: 'Observação', text: texto, icon: 'info' }); }
+        function verFoto(base64) { Swal.fire({ imageUrl: base64, showConfirmButton: false }); }
+        function zerarRanking() { document.getElementById('ranking-list').innerHTML = ""; Swal.fire('Limpado!', '', 'success'); }
+
+        function ativarModoLogado(page = 'cliente') {
+            document.getElementById('page-auth').classList.add('hidden');
+            document.getElementById('main-header').classList.remove('hidden');
+            if(currentUserLogado.wpp === ADMIN_WPP) document.getElementById('btn-nav-admin').classList.remove('hidden');
+            showPage(page);
+        }
+        function showPage(p) {
+            document.querySelectorAll('main').forEach(m => m.classList.add('hidden'));
+            document.getElementById(`page-${p}`).classList.remove('hidden');
+            sessionStorage.setItem('last_page', p);
+            if(p === 'admin') loadAdmin();
+            if(p === 'status') trackRequests();
+        }
+
+        async function loginApp() {
+            const userInp = document.getElementById('loginUser').value.trim();
+            const passInp = document.getElementById('loginPass').value;
+            const res = await fetch(`${USERS_URL}.json`);
+            const users = await res.json() || {};
+            const user = Object.values(users).find(u => (u.username === userInp || u.wpp === userInp) && u.senha === passInp);
+            if(user) {
+                if(!user.verificado) { tempWppForOTP = user.wpp; document.getElementById('page-auth').classList.add('hidden'); document.getElementById('page-otp').classList.remove('hidden'); return; }
+                currentUserLogado = user; localStorage.setItem('vod_user', JSON.stringify(user)); ativarModoLogado();
+            } else { Swal.fire('Erro', 'Dados incorretos', 'error'); }
+        }
+
+        async function registerApp() {
+            const wpp = document.getElementById('regWpp').value.replace(/\D/g,'');
+            const code = Math.floor(100000 + Math.random() * 900000).toString();
+            const data = { username: document.getElementById('regUser').value, nome: document.getElementById('regName').value, wpp: wpp, senha: document.getElementById('regPass').value, codigo: code, verificado: false };
+            await fetch(`${USERS_URL}/${wpp}.json`, { method: 'PUT', body: JSON.stringify(data) });
+            tempWppForOTP = wpp; await dispararWhatsApp(wpp, `Seu código: ${code}`);
+            document.getElementById('page-auth').classList.add('hidden'); document.getElementById('page-otp').classList.remove('hidden');
+        }
+
         function openModal(name, img) { currentItem = { name, img }; document.getElementById('modalTitle').innerText = name; document.getElementById('modal-poster').innerHTML = `<img src="${img}" class="w-full h-full object-cover">`; document.getElementById('modal').classList.remove('hidden'); }
         function closeModal() { document.getElementById('modal').classList.add('hidden'); }
         function setSearchMode(m) { searchMode = m; handleSearch(); }
         function filterAdmin(st) { currentFilter = st; loadAdmin(); }
-        function toggleAuthMode(m) { 
-            document.querySelectorAll('#page-auth > div > div').forEach(d => d.classList.add('hidden'));
-            if(m === 'otp') { document.getElementById('page-auth').classList.add('hidden'); document.getElementById('page-otp').classList.remove('hidden'); }
-            else { document.getElementById(`form-${m}`).classList.remove('hidden'); }
-        }
+        function logoutApp() { localStorage.removeItem('vod_user'); location.reload(); }
+        function toggleAuthMode(m) { document.getElementById('form-login').classList.add('hidden'); document.getElementById('form-register').classList.add('hidden'); document.getElementById('form-forgot').classList.add('hidden'); document.getElementById(`form-${m}`).classList.remove('hidden'); }
         async function updateStatus(id, st) { await fetch(`${DB_BASE}/pedidos/${id}.json`, { method: 'PATCH', body: JSON.stringify({ status: st }) }); loadAdmin(); }
         async function deletePedido(id) { if(confirm('Excluir?')) { await fetch(`${DB_BASE}/pedidos/${id}.json`, { method: 'DELETE' }); loadAdmin(); } }
-        function logoutApp() { localStorage.removeItem('vod_user'); location.reload(); }
+
+        async function trackRequests() {
+            const res = await fetch(DATABASE_URL);
+            const data = await res.json() || {};
+            const list = Object.values(data).filter(p => p.wpp === currentUserLogado.wpp).reverse();
+            document.getElementById('track-results').innerHTML = list.map(p => {
+                const st = p.status.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                return `<div class="glass p-5 rounded-3xl flex items-center gap-4 border border-white/5 mb-4">
+                    <img src="${p.img}" class="w-14 h-20 rounded-xl object-cover">
+                    <div class="flex-1 text-left">
+                        <h4 class="font-bold text-white text-sm">${p.name}</h4>
+                        <div class="status-badge status-${st}">${p.status}</div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
     </script>
-
-    <header id="main-header" class="container mx-auto flex flex-col md:flex-row justify-between items-center p-6 mb-4 gap-6 hidden">
-        <h1 class="text-3xl font-black text-blue-500">PORTAL<span class="text-white">VOD</span></h1>
-        <nav class="flex gap-2 glass p-2 rounded-2xl">
-            <button onclick="showPage('cliente')" class="px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition">Início</button>
-            <button onclick="showPage('status')" class="px-4 py-2 rounded-xl text-xs font-bold hover:bg-slate-700 transition">Meus Pedidos</button>
-            <button id="btn-nav-admin" onclick="showPage('admin')" class="px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hidden">Admin</button>
-            <button onclick="logoutApp()" class="px-4 py-2 rounded-xl text-xs font-bold text-red-400">Sair</button>
-        </nav>
-    </header>
-
-    <main id="page-auth" class="container mx-auto max-w-md mt-16 p-4">
-        <div class="glass p-10 rounded-[40px] text-center border border-white/10">
-            <h2 class="text-4xl font-black text-blue-500 mb-8 uppercase">Acesso</h2>
-            <div id="form-login" class="space-y-4">
-                <input type="text" id="loginUser" placeholder="Usuário ou WhatsApp" class="w-full input-dark p-4 rounded-2xl">
-                <input type="password" id="loginPass" placeholder="Senha" class="w-full input-dark p-4 rounded-2xl">
-                <button onclick="loginApp()" class="w-full py-4 bg-blue-600 rounded-2xl font-black">ENTRAR</button>
-                <button onclick="toggleAuthMode('register')" class="text-xs text-blue-400 font-bold mt-4">Criar conta</button>
-            </div>
-            </div>
-    </main>
-
-    <main id="page-otp" class="container mx-auto max-w-md mt-20 p-4 hidden text-center">
-        <div class="glass p-10 rounded-[40px]">
-            <i class="fab fa-whatsapp text-6xl text-green-500 mb-6"></i>
-            <h2 class="text-2xl font-black mb-2 text-white">Código de Verificação</h2>
-            <input type="text" id="otpCode" placeholder="000000" class="w-full input-dark p-4 rounded-2xl text-center text-3xl font-black">
-            <button onclick="verifyOTP()" class="w-full py-4 bg-green-600 rounded-2xl font-black mt-8">VERIFICAR</button>
-        </div>
-    </main>
-
-    <main id="page-cliente" class="container mx-auto max-w-6xl p-6 hidden">
-        <div class="glass p-8 rounded-[35px] mb-8">
-            <div class="flex gap-4 mb-6">
-                <button onclick="setSearchMode('movie')" class="px-6 py-2 rounded-full text-xs font-black bg-blue-600">FILMES/SÉRIES</button>
-                <button onclick="setSearchMode('tv')" class="px-6 py-2 rounded-full text-xs font-black bg-slate-800">CANAIS DE TV</button>
-            </div>
-            <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="Pesquisar conteúdo..." class="w-full input-dark p-5 rounded-2xl">
-        </div>
-        <div id="grid-content" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6"></div>
-    </main>
-
-    <main id="page-status" class="container mx-auto max-w-2xl p-6 hidden">
-        <h2 class="text-3xl font-black mb-8 text-center uppercase">Meus Pedidos</h2>
-        <div id="track-results"></div>
-    </main>
-
-    <main id="page-admin" class="container mx-auto max-w-7xl p-6 hidden">
-        <div class="flex justify-end mb-4 gap-4">
-            <div class="flex items-center gap-2 glass px-4 py-2 rounded-full border border-white/10 text-[10px] font-black">
-                <div id="vps-dot" class="w-3 h-3 rounded-full bg-slate-500"></div>
-                <span id="vps-text" class="uppercase text-slate-400">Verificando VPS...</span>
-            </div>
-        </div>
-
-        <div class="glass p-6 rounded-3xl mb-8">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xs font-black text-white uppercase">WhatsApp VPS</h3>
-                <button onclick="getQRCode()" class="px-4 py-2 bg-blue-600 rounded-xl text-[10px] font-black">GERAR QR CODE</button>
-            </div>
-            <div id="qrcode-container" class="bg-white p-4 rounded-2xl w-48 mx-auto hidden"><img id="qrcode-img" class="w-full"></div>
-            <p id="wpp-status-msg" class="text-center text-[10px] text-slate-500 font-bold uppercase mt-2">Aguardando...</p>
-        </div>
-
-        <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-            <div class="stat-card"><p class="text-[10px] font-bold text-slate-400 uppercase">Total</p><h3 id="stat-total" class="text-3xl font-black">0</h3></div>
-            <div class="stat-card border-b-4 border-amber-500"><p class="text-[10px] font-bold text-amber-500 uppercase">Pendentes</p><h3 id="stat-pendente" class="text-3xl font-black">0</h3></div>
-            <div class="stat-card border-b-4 border-blue-500"><p class="text-[10px] font-bold text-blue-500 uppercase">Análise</p><h3 id="stat-analise" class="text-3xl font-black">0</h3></div>
-            <div class="stat-card border-b-4 border-green-500"><p class="text-[10px] font-bold text-green-500 uppercase">Concluídos</p><h3 id="stat-concluido" class="text-3xl font-black">0</h3></div>
-            <div class="stat-card border-b-4 border-red-500"><p class="text-[10px] font-bold text-red-500 uppercase">Rejeitados</p><h3 id="stat-rejeitado" class="text-3xl font-black">0</h3></div>
-        </div>
-
-        <div class="grid lg:grid-cols-4 gap-8">
-            <div class="lg:col-span-1"><div class="glass p-6 rounded-3xl"><h3 class="text-xs font-black text-blue-400 uppercase mb-4">Top 10</h3><div id="ranking-list" class="space-y-2"></div></div></div>
-            <div class="lg:col-span-3">
-                <div class="flex gap-2 mb-6">
-                    <button onclick="filterAdmin('Todos')" class="btn-filter" id="f-Todos">Todos</button>
-                    <button onclick="filterAdmin('Pendente')" class="btn-filter" id="f-Pendente">Pendentes</button>
-                </div>
-                <div class="glass rounded-3xl overflow-hidden">
-                    <table class="w-full text-left">
-                        <thead class="bg-slate-900 text-[10px] uppercase text-slate-500 font-black">
-                            <tr><th class="p-4">Conteúdo</th><th class="p-4">Usuário</th><th class="p-4">Data</th><th class="p-4">Status</th><th class="p-4 text-center">Obs</th><th class="p-4 text-center">Ação</th></tr>
-                        </thead>
-                        <tbody id="admin-table" class="divide-y divide-white/5"></tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <div id="modal" class="fixed inset-0 bg-black/95 hidden flex items-center justify-center p-4 z-50">
-        <div class="glass rounded-[40px] max-w-md w-full p-8 text-center border border-white/10">
-            <div id="modal-poster" class="w-32 h-44 bg-slate-800 rounded-2xl mb-6 mx-auto overflow-hidden"></div>
-            <h3 class="text-xl font-black mb-6" id="modalTitle"></h3>
-            <div class="space-y-4 text-left text-xs">
-                <select id="requestType" class="w-full input-dark p-4 rounded-2xl"><option>🍿 Solicitar adição</option><option>🎬 Solicitar atualização</option><option>👨🏻‍🔧 Relatar um problema</option></select>
-                <label class="font-bold text-slate-500 uppercase ml-2">Anexar Print (Opcional)</label>
-                <input type="file" id="userPhoto" accept="image/*" class="w-full input-dark p-3 rounded-2xl">
-                <textarea id="userObs" placeholder="Algum detalhe extra?" class="w-full input-dark p-4 rounded-2xl h-24"></textarea>
-            </div>
-            <button onclick="saveToFirebase()" class="w-full py-4 bg-blue-600 rounded-2xl font-black mt-6">ENVIAR</button>
-            <button onclick="closeModal()" class="mt-4 text-xs text-slate-500 font-bold uppercase">Fechar</button>
-        </div>
-    </div>
-
 </body>
 </html>
