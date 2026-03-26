@@ -29,19 +29,21 @@
 <body class="p-4 md:p-10">
 
     <script>
+        // --- CONFIGURAÇÕES ---
         const DB_BASE = 'https://vods-23763-default-rtdb.firebaseio.com';
         const DATABASE_URL = `${DB_BASE}/pedidos.json`;
         const USERS_URL = `${DB_BASE}/usuarios`;
         const API_KEY_TMDB = '9e64130cb366f23a3398f4f7c8e982c0';
+        
         const ADMIN_WPP = '91988478336'; 
         
         let currentItem = {};
         let searchMode = 'movie';
         let allPedidos = {}; 
-        let currentFilter = 'Tudo';
         let currentUserLogado = null;
         let tempWppForOTP = null; 
         let authFluxo = 'registro';
+        let currentFilter = 'Tudo'; // Variável para controlar o filtro de status
     </script>
 
     <header id="main-header" class="container mx-auto flex flex-col md:flex-row justify-between items-center mb-12 gap-6 hidden">
@@ -60,11 +62,87 @@
     <main id="page-auth" class="container mx-auto max-w-md mt-10 card-animate">
         <div class="glass p-10 rounded-[40px] shadow-2xl text-center">
             <h1 class="text-4xl font-black tracking-tighter text-blue-500 mb-2">PORTAL<span class="text-white">VOD</span></h1>
+            <p class="text-slate-400 text-sm mb-8">Acesso restrito a clientes verificados.</p>
+            
             <div id="form-login" class="space-y-4">
-                <input type="tel" id="loginWpp" placeholder="WhatsApp" class="w-full input-dark p-4 rounded-2xl">
-                <input type="password" id="loginPass" placeholder="Senha" class="w-full input-dark p-4 rounded-2xl">
-                <button onclick="loginApp()" class="w-full py-4 bg-blue-600 rounded-2xl font-black">ENTRAR</button>
+                <input type="tel" id="loginWpp" placeholder="Seu WhatsApp (Somente números)" class="w-full input-dark p-4 rounded-2xl" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                <input type="password" id="loginPass" placeholder="Sua Senha" class="w-full input-dark p-4 rounded-2xl">
+                <button onclick="loginApp()" id="btnLogin" class="w-full py-4 bg-blue-600 rounded-2xl font-black shadow-lg hover:bg-blue-700 transition">ENTRAR</button>
+                <div class="flex justify-between items-center mt-4">
+                    <button onclick="toggleAuthMode('forgot')" class="text-sm text-slate-400 hover:text-white transition">Esqueci a senha</button>
+                    <button onclick="toggleAuthMode('register')" class="text-sm text-blue-500 font-bold hover:underline">Criar conta</button>
+                </div>
             </div>
+
+            <div id="form-register" class="space-y-4 hidden">
+                <input type="text" id="regName" placeholder="Seu Nome Completo" class="w-full input-dark p-4 rounded-2xl">
+                <input type="tel" id="regWpp" placeholder="WhatsApp com DDD (Ex: 11999998888)" class="w-full input-dark p-4 rounded-2xl" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                <input type="password" id="regPass" placeholder="Crie uma Senha" class="w-full input-dark p-4 rounded-2xl">
+                <button onclick="registerApp()" id="btnReg" class="w-full py-4 bg-green-600 rounded-2xl font-black shadow-lg hover:bg-green-700 transition">CRIAR CONTA</button>
+                <p class="text-sm text-slate-400 mt-4">Já tem conta? <button onclick="toggleAuthMode('login')" class="text-blue-500 font-bold hover:underline">Fazer Login</button></p>
+            </div>
+
+            <div id="form-forgot" class="space-y-4 hidden">
+                <p class="text-sm text-slate-400 mb-2">Digite seu WhatsApp para recuperar o acesso.</p>
+                <input type="tel" id="forgotWpp" placeholder="WhatsApp com DDD (Ex: 11999998888)" class="w-full input-dark p-4 rounded-2xl" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                <button onclick="forgotPasswordApp()" id="btnForgot" class="w-full py-4 bg-yellow-600 rounded-2xl font-black shadow-lg hover:bg-yellow-700 transition">RECUPERAR SENHA</button>
+                <p class="text-sm text-slate-400 mt-4"><button onclick="toggleAuthMode('login')" class="text-blue-500 font-bold hover:underline">Voltar para o Login</button></p>
+            </div>
+        </div>
+    </main>
+
+    <main id="page-otp" class="container mx-auto max-w-md mt-10 card-animate hidden">
+        <div class="glass p-10 rounded-[40px] shadow-2xl text-center">
+            <i class="fab fa-whatsapp text-5xl text-green-500 mb-4"></i>
+            <h2 class="text-2xl font-black text-white mb-2">Verifique seu WhatsApp</h2>
+            <p id="otp-msg" class="text-slate-400 text-sm mb-8">Enviamos um código de 6 dígitos para o seu número.</p>
+            
+            <div class="space-y-4">
+                <input type="text" id="otpCode" placeholder="000000" maxlength="6" class="w-full input-dark p-4 rounded-2xl text-center text-2xl font-black tracking-widest" oninput="this.value = this.value.replace(/[^0-9]/g, '')">
+                <button onclick="verifyOTP()" id="btnOtp" class="w-full py-4 bg-green-600 rounded-2xl font-black shadow-lg hover:bg-green-700 transition">CONFIRMAR CÓDIGO</button>
+                
+                <div class="flex justify-between items-center mt-4">
+                    <button onclick="resendOTP()" id="btnResend" class="text-blue-500 font-bold text-sm hover:underline">Reenviar Código</button>
+                    <button onclick="cancelOTP()" class="text-slate-500 font-bold text-sm hover:underline">Cancelar</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <main id="page-new-password" class="container mx-auto max-w-md mt-10 card-animate hidden">
+        <div class="glass p-10 rounded-[40px] shadow-2xl text-center">
+            <i class="fas fa-lock text-5xl text-yellow-500 mb-4"></i>
+            <h2 class="text-2xl font-black text-white mb-2">Crie sua Nova Senha</h2>
+            <p class="text-slate-400 text-sm mb-8">Digite uma nova senha para sua conta.</p>
+            
+            <div class="space-y-4">
+                <input type="password" id="newPassInput" placeholder="Sua nova senha" class="w-full input-dark p-4 rounded-2xl">
+                <button onclick="saveNewPassword()" id="btnNewPass" class="w-full py-4 bg-yellow-600 rounded-2xl font-black shadow-lg hover:bg-yellow-700 transition">SALVAR NOVA SENHA</button>
+            </div>
+        </div>
+    </main>
+
+    <main id="page-cliente" class="container mx-auto max-w-6xl hidden">
+        <div class="glass p-8 rounded-[32px] mb-8 shadow-2xl border-t-4 border-blue-500">
+            <div class="mb-6 bg-blue-500/10 p-4 rounded-2xl border border-blue-500/20 text-blue-400 text-sm font-bold">
+                <i class="fas fa-bullhorn mr-2"></i> AVISO: Pedidos de conserto são prioridade em nossa fila!
+            </div>
+            <div class="flex gap-6 mb-8 border-b border-slate-800 pb-4">
+                <button onclick="setSearchMode('movie')" id="btn-movie" class="text-blue-500 font-bold border-b-2 border-blue-500 pb-2">Filmes & Séries</button>
+                <button onclick="setSearchMode('tv')" id="btn-tv" class="text-slate-500 font-bold pb-2">Canais ao Vivo</button>
+            </div>
+            <div class="relative"><i class="fas fa-search absolute left-5 top-5 text-slate-500"></i>
+                <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="Pesquisar..." class="w-full input-dark p-5 pl-14 rounded-2xl">
+            </div>
+        </div>
+        <div id="grid-content" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-8"></div>
+    </main>
+
+    <main id="page-status" class="container mx-auto max-w-2xl hidden">
+        <div class="glass p-10 rounded-[32px]">
+            <h2 class="text-3xl font-black mb-2">Meus Pedidos</h2>
+            <p class="text-slate-400 text-sm mb-8">Acompanhe os pedidos vinculados ao seu número.</p>
+            <div id="track-results" class="space-y-5"></div>
         </div>
     </main>
 
@@ -80,17 +158,27 @@
             <div class="glass p-6 rounded-3xl border-l-4 border-red-500"><p class="text-slate-400 text-xs font-bold uppercase">Rejeitados</p><h3 id="stat-rejeitado" class="text-2xl font-black text-red-500">0</h3></div>
         </div>
 
-        <div class="glass p-6 rounded-[32px] mb-8">
-            <div class="flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
-                <div class="flex flex-wrap gap-2">
-                    <button onclick="filterAdmin('Tudo')" class="bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold text-white hover:bg-slate-700 transition">Tudo</button>
-                    <button onclick="filterAdmin('Conserto')" class="bg-red-500/20 text-red-500 px-4 py-2 rounded-xl text-xs font-bold hover:bg-red-500/30 transition">Consertos</button>
-                    <button onclick="filterAdmin('Pendente')" class="bg-yellow-500/20 text-yellow-500 px-4 py-2 rounded-xl text-xs font-bold hover:bg-yellow-500/30 transition">Pendentes</button>
-                    <button onclick="filterAdmin('Em Análise')" class="bg-blue-500/20 text-blue-500 px-4 py-2 rounded-xl text-xs font-bold hover:bg-blue-500/30 transition">Análise</button>
-                    <button onclick="filterAdmin('Rejeitado')" class="bg-rose-500/20 text-rose-500 px-4 py-2 rounded-xl text-xs font-bold hover:bg-rose-500/30 transition">Rejeitados</button>
-                    <button onclick="filterAdmin('Concluído')" class="bg-green-500/20 text-green-500 px-4 py-2 rounded-xl text-xs font-bold hover:bg-green-500/30 transition">Concluídos</button>
+        <div class="grid lg:grid-cols-3 gap-8 mb-8">
+            <div class="glass p-6 rounded-[32px] lg:col-span-1">
+                <h3 class="font-black mb-4 flex items-center gap-2"><i class="fas fa-trophy text-yellow-500"></i> TOP PEDIDOS</h3>
+                <div id="ranking-list" class="space-y-3 text-sm text-slate-300"></div>
+            </div>
+            <div class="glass p-6 rounded-[32px] lg:col-span-2">
+                <div class="flex flex-col md:flex-row gap-4 justify-between items-center mb-6">
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="filterAdmin('Tudo')" class="bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold text-white">Tudo</button>
+                        <button onclick="filterAdmin('Conserto')" class="bg-red-500/20 text-red-500 px-4 py-2 rounded-xl text-xs font-bold">Consertos</button>
+                        <button onclick="filterAdmin('Pendente')" class="bg-yellow-500/20 text-yellow-500 px-4 py-2 rounded-xl text-xs font-bold">Pendentes</button>
+                        <button onclick="filterAdmin('Em Análise')" class="bg-blue-500/20 text-blue-500 px-4 py-2 rounded-xl text-xs font-bold">Análise</button>
+                        <button onclick="filterAdmin('Rejeitado')" class="bg-rose-500/20 text-rose-500 px-4 py-2 rounded-xl text-xs font-bold">Rejeitados</button>
+                        <button onclick="filterAdmin('Concluído')" class="bg-green-500/20 text-green-500 px-4 py-2 rounded-xl text-xs font-bold">Concluídos</button>
+                    </div>
+                    <input type="text" id="adminSearch" onkeyup="loadAdmin()" placeholder="Buscar por nome ou whatsapp..." class="input-dark p-3 rounded-xl text-xs w-full md:w-64">
                 </div>
-                <input type="text" id="adminSearch" onkeyup="loadAdmin()" placeholder="Buscar por nome ou whatsapp..." class="input-dark p-3 rounded-xl text-xs w-full md:w-64">
+                <div class="flex justify-between items-center">
+                    <button onclick="clearFinished()" class="text-red-500 text-[10px] font-black uppercase hover:underline"><i class="fas fa-trash mr-1"></i> Limpar Concluídos</button>
+                    <button onclick="exportToExcel()" class="text-green-500 text-[10px] font-black uppercase hover:underline"><i class="fas fa-file-excel mr-1"></i> Exportar Dados</button>
+                </div>
             </div>
         </div>
 
@@ -105,97 +193,70 @@
     </main>
 
     <script>
-        // LÓGICA DE LOGIN E INICIALIZAÇÃO
-        window.onload = () => {
-            const savedUser = localStorage.getItem('vod_user');
-            if(savedUser) {
-                currentUserLogado = JSON.parse(savedUser);
-                ativarModoLogado();
-            }
-        };
-
-        async function loginApp() {
-            const wpp = document.getElementById('loginWpp').value;
-            const res = await fetch(`${USERS_URL}/${wpp}.json`);
-            const user = await res.json();
-            if(user) {
-                currentUserLogado = user;
-                localStorage.setItem('vod_user', JSON.stringify(user));
-                ativarModoLogado();
-            }
-        }
-
-        function ativarModoLogado() {
-            document.getElementById('page-auth').classList.add('hidden');
-            document.getElementById('main-header').classList.remove('hidden');
-            if(currentUserLogado.wpp === ADMIN_WPP) {
-                document.getElementById('btn-nav-admin').classList.remove('hidden');
-                showPage('admin');
-            } else { showPage('cliente'); }
-        }
-
-        function showPage(page) {
-            document.querySelectorAll('main').forEach(m => m.classList.add('hidden'));
-            document.getElementById(`page-${page}`).classList.remove('hidden');
-            if(page === 'admin') loadAdmin();
-        }
-
-        // --- A PARTE QUE VOCÊ PEDIU: FILTROS DO ADMIN ---
         function filterAdmin(status) {
             currentFilter = status;
             loadAdmin();
         }
 
         async function loadAdmin() {
-            const res = await fetch(DATABASE_URL);
-            const data = await res.json() || {};
-            allPedidos = data;
-            
-            const table = document.getElementById('admin-table');
-            const searchTerm = document.getElementById('adminSearch').value.toLowerCase();
-            
-            let html = '';
-            let count = { total: 0, analise: 0, concluido: 0, rejeitado: 0 };
+            try {
+                const res = await fetch(DATABASE_URL);
+                const data = await res.json();
+                if (!data) return;
 
-            Object.keys(data).reverse().forEach(id => {
-                const p = data[id];
-                
-                // Contadores para os cards do topo
-                count.total++;
-                if(p.status === 'Em Análise') count.analise++;
-                if(p.status === 'Concluído') count.concluido++;
-                if(p.status === 'Rejeitado') count.rejeitado++;
+                const table = document.getElementById('admin-table');
+                const query = document.getElementById('adminSearch').value.toLowerCase();
+                table.innerHTML = "";
 
-                // Lógica de Filtro por Botão e Busca
-                const matchFilter = currentFilter === 'Tudo' || 
-                                   (currentFilter === 'Conserto' && p.tipo === 'Conserto') || 
-                                   (p.status === currentFilter);
-                
-                const matchSearch = p.nomeConteudo.toLowerCase().includes(searchTerm) || 
-                                   p.userWpp.includes(searchTerm);
+                let stats = { total: 0, analise: 0, concluido: 0, rejeitado: 0 };
 
-                if(matchFilter && matchSearch) {
-                    html += `
-                        <tr class="${p.tipo === 'Conserto' ? 'urgente' : ''}">
-                            <td class="p-6 font-bold text-sm">${p.nomeConteudo} <br><span class="text-[10px] text-slate-500 uppercase">${p.tipo}</span></td>
-                            <td class="p-6 text-xs">${p.userName}<br><span class="text-blue-500 font-bold">${p.userWpp}</span></td>
-                            <td class="p-6"><span class="status-badge status-${p.status.toLowerCase().replace(' ', '-')}">${p.status}</span></td>
-                            <td class="p-6 text-center">
-                                <button onclick="updateStatus('${id}', 'Em Análise')" class="text-blue-500 mx-1"><i class="fas fa-search"></i></button>
-                                <button onclick="updateStatus('${id}', 'Concluído')" class="text-green-500 mx-1"><i class="fas fa-check"></i></button>
-                                <button onclick="updateStatus('${id}', 'Rejeitado')" class="text-red-500 mx-1"><i class="fas fa-times"></i></button>
-                            </td>
-                        </tr>`;
-                }
-            });
+                Object.keys(data).forEach(id => {
+                    const item = data[id];
+                    
+                    // Lógica de Estatísticas
+                    stats.total++;
+                    if (item.status === 'Em Análise') stats.analise++;
+                    if (item.status === 'Concluído') stats.concluido++;
+                    if (item.status === 'Rejeitado') stats.rejeitado++;
 
-            table.innerHTML = html;
-            
-            // Atualiza os números nos cards lá no topo
-            document.getElementById('stat-total').innerText = count.total;
-            document.getElementById('stat-analise').innerText = count.analise;
-            document.getElementById('stat-concluido').innerText = count.concluido;
-            document.getElementById('stat-rejeitado').innerText = count.rejeitado;
+                    // Lógica de Filtro (Status + Busca)
+                    const matchesFilter = (currentFilter === 'Tudo' || item.status === currentFilter || (currentFilter === 'Conserto' && item.tipo === 'Conserto'));
+                    const matchesSearch = (item.nome.toLowerCase().includes(query) || item.wpp.includes(query) || item.conteudo.toLowerCase().includes(query));
+
+                    if (matchesFilter && matchesSearch) {
+                        const row = `
+                            <tr>
+                                <td class="p-6">
+                                    <div class="font-bold">${item.conteudo}</div>
+                                    <div class="text-slate-500 text-[10px]">${item.obs || 'Sem observações'}</div>
+                                </td>
+                                <td class="p-6">
+                                    <div class="text-sm font-bold">${item.nome}</div>
+                                    <div class="text-slate-500 text-xs">${item.wpp}</div>
+                                </td>
+                                <td class="p-6">
+                                    <span class="status-badge status-${item.status.toLowerCase().replace('em ', '').replace('í', 'i')}">${item.status}</span>
+                                </td>
+                                <td class="p-6 text-center">
+                                    <button onclick="updateStatus('${id}', 'Em Análise')" class="text-blue-500 mx-1"><i class="fas fa-sync"></i></button>
+                                    <button onclick="updateStatus('${id}', 'Concluído')" class="text-green-500 mx-1"><i class="fas fa-check"></i></button>
+                                    <button onclick="deletePedido('${id}')" class="text-red-500 mx-1"><i class="fas fa-trash"></i></button>
+                                </td>
+                            </tr>
+                        `;
+                        table.innerHTML += row;
+                    }
+                });
+
+                // Atualiza Cards de Status
+                document.getElementById('stat-total').innerText = stats.total;
+                document.getElementById('stat-analise').innerText = stats.analise;
+                document.getElementById('stat-concluido').innerText = stats.concluido;
+                document.getElementById('stat-rejeitado').innerText = stats.rejeitado;
+
+            } catch (e) {
+                console.error("Erro ao carregar admin:", e);
+            }
         }
 
         async function updateStatus(id, newStatus) {
@@ -206,7 +267,19 @@
             loadAdmin();
         }
 
-        function logoutApp() { localStorage.removeItem('vod_user'); location.reload(); }
+        async function deletePedido(id) {
+            const confirm = await Swal.fire({
+                title: 'Deletar pedido?',
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonText: 'Sim, remover!'
+            });
+            if (confirm.isConfirmed) {
+                await fetch(`${DB_BASE}/pedidos/${id}.json`, { method: 'DELETE' });
+                loadAdmin();
+            }
+        }
     </script>
-</body>
+    
+    </body>
 </html>
