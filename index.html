@@ -18,7 +18,8 @@
         .status-concluido { background: #dcfce7; color: #166534; }
         .status-rejeitado { background: #fee2e2; color: #991b1b; }
         .input-dark { background: #1f2937; border: 1px solid #374151; color: white; }
-        .urgente { border: 2px solid #ef4444 !important; }
+        .urgente { border: 2px solid #ef4444 !important; animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
     </style>
 </head>
 <body class="p-4 md:p-10">
@@ -31,8 +32,10 @@
         const ADMIN_WPP = '91988478336'; 
         
         let currentItem = {};
-        let searchMode = 'movie'; // 'movie' para Filmes/Séries, 'tv' para Canais
+        let searchMode = 'movie';
         let currentUserLogado = null;
+        let allPedidos = {};
+        let currentFilter = 'Tudo';
     </script>
 
     <header id="main-header" class="container mx-auto flex flex-col md:flex-row justify-between items-center mb-12 gap-6 hidden">
@@ -43,14 +46,14 @@
         <nav class="flex flex-wrap justify-center gap-2 glass p-1.5 rounded-2xl shadow-2xl">
             <button onclick="showPage('cliente')" class="px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition">Início</button>
             <button onclick="showPage('status')" class="px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition">Meus Pedidos</button>
-            <button id="btn-nav-admin" onclick="showPage('admin')" class="px-4 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-700 transition hidden">Admin</button>
-            <button onclick="logoutApp()" class="px-4 py-2.5 rounded-xl text-sm font-bold text-red-400">Sair</button>
+            <button id="btn-nav-admin" onclick="showPage('admin')" class="px-4 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-700 transition hidden"><i class="fas fa-shield-alt mr-1"></i> Admin</button>
+            <button onclick="logoutApp()" class="px-4 py-2.5 rounded-xl text-sm font-bold text-red-400 hover:bg-red-500/20 transition"><i class="fas fa-sign-out-alt"></i></button>
         </nav>
     </header>
 
     <main id="page-auth" class="container mx-auto max-w-md mt-10">
-        <div class="glass p-10 rounded-[40px] text-center">
-            <h1 class="text-4xl font-black text-blue-500 mb-6">LOGIN</h1>
+        <div class="glass p-10 rounded-[40px] shadow-2xl text-center">
+            <h1 class="text-4xl font-black tracking-tighter text-blue-500 mb-6">LOGIN</h1>
             <div class="space-y-4">
                 <input type="tel" id="loginWpp" placeholder="WhatsApp" class="w-full input-dark p-4 rounded-2xl">
                 <input type="password" id="loginPass" placeholder="Senha" class="w-full input-dark p-4 rounded-2xl">
@@ -60,7 +63,7 @@
     </main>
 
     <main id="page-cliente" class="container mx-auto max-w-6xl hidden">
-        <div class="glass p-8 rounded-[32px] mb-8">
+        <div class="glass p-8 rounded-[32px] mb-8 shadow-2xl border-t-4 border-blue-500">
             <div class="flex gap-6 mb-8 border-b border-slate-800 pb-4">
                 <button onclick="setSearchMode('movie')" id="btn-movie" class="text-blue-500 font-bold border-b-2 border-blue-500 pb-2">Filmes & Séries</button>
                 <button onclick="setSearchMode('tv')" id="btn-tv" class="text-slate-500 font-bold pb-2">Canais ao Vivo</button>
@@ -80,11 +83,34 @@
     </main>
 
     <main id="page-admin" class="container mx-auto max-w-7xl hidden">
-        <h2 class="text-3xl font-black text-blue-500 mb-8">PAINEL ADMINISTRATIVO</h2>
+        <div class="flex justify-between items-center mb-8">
+            <h2 class="text-3xl font-black text-blue-500"><i class="fas fa-shield-alt mr-2 text-white"></i> PAINEL ADMIN</h2>
+            <button onclick="loadAdmin()" class="bg-blue-600 px-4 py-2 rounded-xl text-xs font-bold">ATUALIZAR</button>
+        </div>
+
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div class="glass p-6 rounded-3xl border-l-4 border-blue-500"><p class="text-slate-400 text-xs font-bold uppercase">Total</p><h3 id="stat-total" class="text-2xl font-black">0</h3></div>
+            <div class="glass p-6 rounded-3xl border-l-4 border-yellow-500"><p class="text-slate-400 text-xs font-bold uppercase">Pendentes</p><h3 id="stat-pendente" class="text-2xl font-black text-yellow-500">0</h3></div>
+            <div class="glass p-6 rounded-3xl border-l-4 border-green-500"><p class="text-slate-400 text-xs font-bold uppercase">Concluídos</p><h3 id="stat-concluido" class="text-2xl font-black text-green-500">0</h3></div>
+            <div class="glass p-6 rounded-3xl border-l-4 border-red-500"><p class="text-slate-400 text-xs font-bold uppercase">Rejeitados</p><h3 id="stat-rejeitado" class="text-2xl font-black text-red-500">0</h3></div>
+        </div>
+
+        <div class="glass p-6 rounded-[32px] mb-8">
+            <div class="flex flex-col md:flex-row gap-4 justify-between items-center">
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="filterAdmin('Tudo')" class="bg-slate-800 px-4 py-2 rounded-xl text-xs font-bold">Tudo</button>
+                    <button onclick="filterAdmin('Pendente')" class="bg-yellow-500/20 text-yellow-500 px-4 py-2 rounded-xl text-xs font-bold">Pendentes</button>
+                    <button onclick="filterAdmin('Em Análise')" class="bg-blue-500/20 text-blue-500 px-4 py-2 rounded-xl text-xs font-bold">Análise</button>
+                    <button onclick="filterAdmin('Concluído')" class="bg-green-500/20 text-green-500 px-4 py-2 rounded-xl text-xs font-bold">Concluídos</button>
+                </div>
+                <input type="text" id="adminSearch" onkeyup="renderAdminTable()" placeholder="Buscar pedido ou WhatsApp..." class="input-dark p-3 rounded-xl text-xs w-full md:w-64">
+            </div>
+        </div>
+
         <div class="glass rounded-[32px] overflow-hidden">
             <table class="w-full text-left">
-                <thead class="bg-slate-900/60 text-slate-500 text-[10px] font-black uppercase">
-                    <tr><th class="p-6">Conteúdo</th><th class="p-6">Solicitante</th><th class="p-6">Status</th><th class="p-6">Ações</th></tr>
+                <thead class="bg-slate-900/60 text-slate-500 uppercase text-[10px] font-black">
+                    <tr><th class="p-6">Conteúdo</th><th class="p-6">Solicitante</th><th class="p-6">Status</th><th class="p-6 text-center">Ações</th></tr>
                 </thead>
                 <tbody id="admin-table" class="divide-y divide-slate-800"></tbody>
             </table>
@@ -125,13 +151,13 @@
                 currentUserLogado = user;
                 localStorage.setItem('vod_user', JSON.stringify(user));
                 ativarModoLogado();
-            } else { Swal.fire('Erro', 'Credenciais inválidas', 'error'); }
+            } else { Swal.fire('Erro', 'Dados incorretos', 'error'); }
         }
 
         function ativarModoLogado() {
             document.getElementById('page-auth').classList.add('hidden');
             document.getElementById('main-header').classList.remove('hidden');
-            document.getElementById('user-display').innerHTML = `Olá, ${currentUserLogado.nome}`;
+            document.getElementById('user-display').innerHTML = `Olá, <b>${currentUserLogado.nome}</b>`;
             if(currentUserLogado.wpp === ADMIN_WPP) document.getElementById('btn-nav-admin').classList.remove('hidden');
             showPage('cliente');
         }
@@ -147,31 +173,24 @@
             searchMode = mode;
             document.getElementById('btn-movie').className = mode === 'movie' ? 'text-blue-500 font-bold border-b-2 border-blue-500 pb-2' : 'text-slate-500 font-bold pb-2';
             document.getElementById('btn-tv').className = mode === 'tv' ? 'text-blue-500 font-bold border-b-2 border-blue-500 pb-2' : 'text-slate-500 font-bold pb-2';
-            document.getElementById('grid-content').innerHTML = '';
-            document.getElementById('searchInput').value = '';
         }
 
         async function handleSearch() {
             const q = document.getElementById('searchInput').value;
             if(q.length < 3) return;
-            
-            // Lógica corrigida: Se for modo 'tv', busca especificamente por tv, se não multi
             const endpoint = searchMode === 'tv' ? 'search/tv' : 'search/multi';
             const res = await fetch(`https://api.themoviedb.org/3/${endpoint}?api_key=${API_KEY_TMDB}&language=pt-BR&query=${q}`);
             const data = await res.json();
-            
-            document.getElementById('grid-content').innerHTML = data.results
-                .filter(i => i.poster_path || i.profile_path)
-                .map(item => {
-                    const title = item.title || item.name;
-                    const img = `https://image.tmdb.org/t/p/w500${item.poster_path || item.profile_path}`;
-                    return `
-                        <div onclick="openModal('${title.replace(/'/g, "")}', '${img}')" class="glass rounded-[32px] overflow-hidden cursor-pointer hover:scale-105 transition">
-                            <img src="${img}" class="w-full h-64 object-cover">
-                            <div class="p-4"><h4 class="font-bold text-xs truncate">${title}</h4></div>
-                        </div>
-                    `;
-                }).join('');
+            document.getElementById('grid-content').innerHTML = data.results.filter(i => i.poster_path || i.profile_path).map(item => {
+                const title = item.title || item.name;
+                const img = `https://image.tmdb.org/t/p/w500${item.poster_path || item.profile_path}`;
+                return `
+                    <div onclick="openModal('${title.replace(/'/g, "")}', '${img}')" class="glass rounded-[32px] overflow-hidden cursor-pointer hover:scale-105 transition">
+                        <img src="${img}" class="w-full h-64 object-cover">
+                        <div class="p-4"><h4 class="font-bold text-xs truncate">${title}</h4></div>
+                    </div>
+                `;
+            }).join('');
         }
 
         function openModal(title, img) {
@@ -194,27 +213,47 @@
                 data: new Date().toISOString()
             };
             await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify(pedido) });
-            Swal.fire('Sucesso', 'Pedido enviado!', 'success');
+            Swal.fire('Enviado!', 'Seu pedido foi registrado.', 'success');
             closeModal();
         }
 
         async function loadAdmin() {
             const res = await fetch(DATABASE_URL);
-            const data = await res.json() || {};
+            allPedidos = await res.json() || {};
+            updateStats();
+            renderAdminTable();
+        }
+
+        function filterAdmin(status) {
+            currentFilter = status;
+            renderAdminTable();
+        }
+
+        function renderAdminTable() {
             const table = document.getElementById('admin-table');
-            table.innerHTML = Object.keys(data).reverse().map(id => {
-                const p = data[id];
-                return `
-                    <tr class="${p.tipo === 'Conserto' ? 'urgente' : ''}">
-                        <td class="p-6 font-bold">${p.nomeConteudo}</td>
-                        <td class="p-6 text-sm">${p.userName}<br><span class="text-blue-500">${p.userWpp}</span></td>
-                        <td class="p-6"><span class="status-badge status-${p.status.toLowerCase().replace(' ', '-')}">${p.status}</span></td>
-                        <td class="p-6">
-                            <button onclick="updateStatus('${id}', 'Concluído')" class="text-green-500 mr-2"><i class="fas fa-check"></i></button>
-                            <button onclick="updateStatus('${id}', 'Rejeitado')" class="text-red-500"><i class="fas fa-times"></i></button>
-                        </td>
-                    </tr>
-                `;
+            const search = document.getElementById('adminSearch').value.toLowerCase();
+            const keys = Object.keys(allPedidos).reverse();
+            
+            table.innerHTML = keys.map(id => {
+                const p = allPedidos[id];
+                const matchesSearch = p.nomeConteudo.toLowerCase().includes(search) || p.userWpp.includes(search);
+                const matchesFilter = currentFilter === 'Tudo' || p.status === currentFilter;
+
+                if (matchesSearch && matchesFilter) {
+                    return `
+                        <tr class="${p.tipo === 'Conserto' ? 'urgente' : ''}">
+                            <td class="p-6"><div class="font-bold">${p.nomeConteudo}</div><div class="text-[10px] text-slate-500 uppercase">${p.tipo}</div></td>
+                            <td class="p-6"><div class="text-sm">${p.userName}</div><div class="text-xs text-blue-500">${p.userWpp}</div></td>
+                            <td class="p-6"><span class="status-badge status-${p.status.toLowerCase().replace(' ', '-')}">${p.status}</span></td>
+                            <td class="p-6 text-center space-x-2">
+                                <button onclick="updateStatus('${id}', 'Em Análise')" class="text-blue-400"><i class="fas fa-search"></i></button>
+                                <button onclick="updateStatus('${id}', 'Concluído')" class="text-green-500"><i class="fas fa-check"></i></button>
+                                <button onclick="updateStatus('${id}', 'Rejeitado')" class="text-red-500"><i class="fas fa-times"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                }
+                return '';
             }).join('');
         }
 
@@ -223,16 +262,24 @@
             loadAdmin();
         }
 
+        function updateStats() {
+            const vals = Object.values(allPedidos);
+            document.getElementById('stat-total').innerText = vals.length;
+            document.getElementById('stat-pendente').innerText = vals.filter(p => p.status === 'Pendente').length;
+            document.getElementById('stat-concluido').innerText = vals.filter(p => p.status === 'Concluído').length;
+            document.getElementById('stat-rejeitado').innerText = vals.filter(p => p.status === 'Rejeitado').length;
+        }
+
         async function trackRequests() {
             const res = await fetch(DATABASE_URL);
             const data = await res.json() || {};
             const results = Object.values(data).filter(p => p.userWpp === currentUserLogado.wpp).reverse();
             document.getElementById('track-results').innerHTML = results.map(p => `
-                <div class="glass p-5 rounded-3xl flex justify-between items-center">
+                <div class="glass p-5 rounded-3xl flex justify-between items-center border-l-4 ${p.status === 'Concluído' ? 'border-green-500' : 'border-blue-500'}">
                     <div><h4 class="font-bold">${p.nomeConteudo}</h4><p class="text-xs text-slate-500">${p.tipo}</p></div>
                     <span class="status-badge status-${p.status.toLowerCase().replace(' ', '-')}">${p.status}</span>
                 </div>
-            `).join('') || '<p class="text-center text-slate-500">Nenhum pedido.</p>';
+            `).join('') || '<p class="text-center text-slate-500">Nenhum pedido encontrado.</p>';
         }
 
         function logoutApp() { localStorage.removeItem('vod_user'); location.reload(); }
