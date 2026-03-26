@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal VOD - Dashboard</title>
+    <title>Portal VOD - Pedidos</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
@@ -40,26 +40,21 @@
             <h1 class="text-4xl font-black tracking-tighter text-blue-500">PORTAL<span class="text-white">VOD</span></h1>
             <p id="user-display" class="text-slate-500 font-medium italic text-sm mt-1"></p>
         </div>
-        <nav class="flex flex-wrap justify-center gap-2 glass p-1.5 rounded-2xl shadow-2xl relative">
-            <button onclick="showPage('cliente')" class="px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition">Início</button>
-            <button onclick="showPage('status')" class="px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition">Meus Pedidos</button>
-            <button onclick="showPage('ajustes')" class="px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition">Ajustes</button>
-            <button id="btn-nav-admin" onclick="showPage('admin')" class="px-4 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-700 transition hidden">Admin</button>
+        <nav class="flex flex-wrap justify-center gap-2 glass p-1.5 rounded-2xl shadow-2xl">
+            <button onclick="showPage('cliente')" class="px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition">Fazer Pedido</button>
+            <button onclick="showPage('status')" class="px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-slate-800 transition">Acompanhar</button>
+            <button id="btn-nav-admin" onclick="showPage('admin')" class="px-4 py-2.5 rounded-xl text-sm font-bold bg-blue-600 hover:bg-blue-700 transition hidden">Painel Admin</button>
             <button onclick="logoutApp()" class="px-4 py-2.5 rounded-xl text-sm font-bold text-red-400">Sair</button>
-            
-            <button onclick="addPartnerUser()" class="absolute -top-2 -right-2 bg-green-500 w-8 h-8 rounded-full flex items-center justify-center shadow-lg hover:scale-110 transition">
-                <i class="fas fa-plus text-white text-xs"></i>
-            </button>
         </nav>
     </header>
 
     <main id="page-auth" class="container mx-auto max-w-md mt-10">
         <div class="glass p-10 rounded-[40px] text-center">
-            <h1 class="text-4xl font-black text-blue-500 mb-6">LOGIN</h1>
+            <h1 class="text-4xl font-black text-blue-500 mb-6 uppercase">Entrar</h1>
             <div class="space-y-4">
-                <input type="tel" id="loginWpp" placeholder="WhatsApp" class="w-full input-dark p-4 rounded-2xl">
-                <input type="password" id="loginPass" placeholder="Senha" class="w-full input-dark p-4 rounded-2xl">
-                <button onclick="loginApp()" class="w-full py-4 bg-blue-600 rounded-2xl font-black">ENTRAR</button>
+                <input type="tel" id="loginWpp" placeholder="Seu WhatsApp" class="w-full input-dark p-4 rounded-2xl">
+                <input type="password" id="loginPass" placeholder="Sua Senha" class="w-full input-dark p-4 rounded-2xl">
+                <button onclick="loginApp()" class="w-full py-4 bg-blue-600 rounded-2xl font-black hover:bg-blue-700 transition">ACESSAR PORTAL</button>
             </div>
         </div>
     </main>
@@ -71,7 +66,7 @@
                 <button onclick="setSearchMode('tv')" id="btn-tv" class="text-slate-500 font-bold pb-2">Canais ao Vivo</button>
             </div>
             <div class="relative">
-                <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="Pesquisar..." class="w-full input-dark p-5 rounded-2xl">
+                <input type="text" id="searchInput" onkeyup="handleSearch()" placeholder="Digite o nome do conteúdo..." class="w-full input-dark p-5 rounded-2xl">
             </div>
         </div>
         <div id="grid-content" class="grid grid-cols-2 md:grid-cols-5 gap-8"></div>
@@ -79,47 +74,13 @@
 
     <main id="page-status" class="container mx-auto max-w-2xl hidden">
         <div class="glass p-10 rounded-[32px]">
-            <h2 class="text-3xl font-black mb-6">Meus Pedidos</h2>
+            <h2 class="text-3xl font-black mb-6">Status dos Pedidos</h2>
             <div id="track-results" class="space-y-4"></div>
         </div>
     </main>
 
-    <main id="page-ajustes" class="container mx-auto max-w-2xl hidden">
-        <div class="glass p-10 rounded-[32px] space-y-8">
-            <h2 class="text-3xl font-black mb-6">Ajustes</h2>
-            
-            <section>
-                <h3 class="text-blue-500 font-bold mb-4 uppercase text-xs tracking-widest">Informação Geral</h3>
-                <div class="bg-slate-900/50 p-6 rounded-2xl space-y-3 text-sm">
-                    <p class="flex justify-between"><span>Status da Lista:</span> <span class="text-green-500 font-bold">ATIVA</span></p>
-                    <p class="flex justify-between"><span>Data de Registro:</span> <span id="info-data-reg">--/--/--</span></p>
-                    <p class="flex justify-between"><span>Teste Gratuito:</span> <span class="text-yellow-500">NÃO</span></p>
-                    <p class="flex justify-between"><span>Dispositivo:</span> <span class="text-slate-400 italic" id="info-device">Detectando...</span></p>
-                </div>
-            </section>
-
-            <section>
-                <h3 class="text-blue-500 font-bold mb-4 uppercase text-xs tracking-widest">Configuração de Fluxo</h3>
-                <select id="flowFormat" class="w-full input-dark p-4 rounded-2xl mb-4">
-                    <option value="default">Default (HLS)</option>
-                    <option value="m3u">M3U8</option>
-                    <option value="ts">MPEG-TS</option>
-                </select>
-                <div class="flex items-center gap-3">
-                    <input type="checkbox" id="useTMDB" checked>
-                    <label for="useTMDB" class="text-sm">Usar API TMDB para capas e sinopses</label>
-                </div>
-            </section>
-        </div>
-    </main>
-
     <main id="page-admin" class="container mx-auto max-w-7xl hidden">
-        <div class="flex justify-between items-center mb-8">
-            <h2 class="text-3xl font-black text-blue-500 uppercase">Gerenciamento</h2>
-            <div id="admin-stats" class="flex gap-4 text-[10px] font-bold">
-                <span class="bg-blue-600/20 p-2 rounded-lg">TOTAL: <span id="total-count">0</span></span>
-            </div>
-        </div>
+        <h2 class="text-3xl font-black text-blue-500 mb-8 uppercase">Gerenciamento de Pedidos</h2>
         <div class="glass rounded-[32px] overflow-hidden">
             <table class="w-full text-left">
                 <thead class="bg-slate-900/60 text-slate-500 text-[10px] font-black uppercase">
@@ -139,9 +100,9 @@
                     <option value="Adição">🎬 Solicitar Adição</option>
                     <option value="Conserto">🛠️ Relatar Problema</option>
                 </select>
-                <textarea id="userObs" placeholder="Observações..." class="w-full input-dark p-4 rounded-2xl h-24"></textarea>
-                <button onclick="saveToFirebase()" class="w-full py-5 bg-blue-600 rounded-[24px] font-black">ENVIAR PEDIDO</button>
-                <button onclick="closeModal()" class="w-full text-slate-500 font-bold mt-4">CANCELAR</button>
+                <textarea id="userObs" placeholder="Ex: Adicionar dublado, temporada 2, etc..." class="w-full input-dark p-4 rounded-2xl h-24"></textarea>
+                <button onclick="saveToFirebase()" class="w-full py-5 bg-blue-600 rounded-[24px] font-black hover:bg-blue-700 transition">ENVIAR SOLICITAÇÃO</button>
+                <button onclick="closeModal()" class="w-full text-slate-500 font-bold mt-4">FECHAR</button>
             </div>
         </div>
     </div>
@@ -158,20 +119,20 @@
         async function loginApp() {
             const wpp = document.getElementById('loginWpp').value;
             const senha = document.getElementById('loginPass').value;
+            if(!wpp) return;
             const res = await fetch(`${USERS_URL}/${wpp}.json`);
             const user = await res.json();
             if(user && user.senha === senha) {
                 currentUserLogado = user;
                 localStorage.setItem('vod_user', JSON.stringify(user));
                 ativarModoLogado();
-            } else { Swal.fire('Erro', 'Dados incorretos', 'error'); }
+            } else { Swal.fire('Erro', 'Dados incorretos!', 'error'); }
         }
 
         function ativarModoLogado() {
             document.getElementById('page-auth').classList.add('hidden');
             document.getElementById('main-header').classList.remove('hidden');
-            document.getElementById('user-display').innerHTML = `Olá, <b>${currentUserLogado.nome}</b>`;
-            document.getElementById('info-device').innerText = navigator.userAgent.split(' ')[0];
+            document.getElementById('user-display').innerHTML = `Logado como: <b>${currentUserLogado.nome}</b>`;
             if(currentUserLogado.wpp === ADMIN_WPP) document.getElementById('btn-nav-admin').classList.remove('hidden');
             showPage('cliente');
         }
@@ -187,20 +148,24 @@
             searchMode = mode;
             document.getElementById('btn-movie').className = mode === 'movie' ? 'text-blue-500 font-bold border-b-2 border-blue-500 pb-2' : 'text-slate-500 font-bold pb-2';
             document.getElementById('btn-tv').className = mode === 'tv' ? 'text-blue-500 font-bold border-b-2 border-blue-500 pb-2' : 'text-slate-500 font-bold pb-2';
+            document.getElementById('grid-content').innerHTML = '';
+            document.getElementById('searchInput').value = '';
         }
 
         async function handleSearch() {
             const q = document.getElementById('searchInput').value;
             if(q.length < 3) return;
+            // Filtra por 'tv' para canais/series de tv e 'multi' para o geral
             const endpoint = searchMode === 'tv' ? 'search/tv' : 'search/multi';
             const res = await fetch(`https://api.themoviedb.org/3/${endpoint}?api_key=${API_KEY_TMDB}&language=pt-BR&query=${q}`);
             const data = await res.json();
+            
             document.getElementById('grid-content').innerHTML = data.results.filter(i => i.poster_path || i.profile_path).map(item => {
                 const title = item.title || item.name;
                 const img = `https://image.tmdb.org/t/p/w500${item.poster_path || item.profile_path}`;
-                return `<div onclick="openModal('${title.replace(/'/g, "")}', '${img}')" class="glass rounded-[32px] overflow-hidden cursor-pointer hover:scale-105 transition">
+                return `<div onclick="openModal('${title.replace(/'/g, "")}', '${img}')" class="glass rounded-[32px] overflow-hidden cursor-pointer hover:scale-105 transition border border-transparent hover:border-blue-500/50">
                     <img src="${img}" class="w-full h-64 object-cover">
-                    <div class="p-4"><h4 class="font-bold text-xs truncate">${title}</h4></div>
+                    <div class="p-4"><h4 class="font-bold text-xs truncate uppercase">${title}</h4></div>
                 </div>`;
             }).join('');
         }
@@ -225,7 +190,7 @@
                 data: new Date().toISOString()
             };
             await fetch(DATABASE_URL, { method: 'POST', body: JSON.stringify(pedido) });
-            Swal.fire('OK', 'Pedido enviado!', 'success');
+            Swal.fire('Sucesso!', 'Seu pedido foi enviado ao administrador.', 'success');
             closeModal();
         }
 
@@ -234,15 +199,16 @@
             const data = await res.json() || {};
             const table = document.getElementById('admin-table');
             const keys = Object.keys(data).reverse();
-            document.getElementById('total-count').innerText = keys.length;
             table.innerHTML = keys.map(id => {
                 const p = data[id];
                 return `<tr class="${p.tipo === 'Conserto' ? 'urgente' : ''}">
-                    <td class="p-6 font-bold text-sm">${p.nomeConteudo}</td>
-                    <td class="p-6 text-xs">${p.userName}<br><span class="text-blue-500">${p.userWpp}</span></td>
+                    <td class="p-6 font-bold text-sm">${p.nomeConteudo} <br><span class="text-[10px] text-slate-500 uppercase">${p.tipo}</span></td>
+                    <td class="p-6 text-xs">${p.userName}<br><span class="text-blue-500 font-bold">${p.userWpp}</span></td>
                     <td class="p-6"><span class="status-badge status-${p.status.toLowerCase().replace(' ', '-')}">${p.status}</span></td>
-                    <td class="p-6"><button onclick="updateStatus('${id}', 'Concluído')" class="text-green-500 mr-2"><i class="fas fa-check"></i></button>
-                    <button onclick="updateStatus('${id}', 'Rejeitado')" class="text-red-500"><i class="fas fa-times"></i></button></td>
+                    <td class="p-6">
+                        <button onclick="updateStatus('${id}', 'Concluído')" class="text-green-500 mr-3"><i class="fas fa-check"></i></button>
+                        <button onclick="updateStatus('${id}', 'Rejeitado')" class="text-red-500"><i class="fas fa-times"></i></button>
+                    </td>
                 </tr>`;
             }).join('');
         }
@@ -257,20 +223,11 @@
             const data = await res.json() || {};
             const results = Object.values(data).filter(p => p.userWpp === currentUserLogado.wpp).reverse();
             document.getElementById('track-results').innerHTML = results.map(p => `
-                <div class="glass p-5 rounded-3xl flex justify-between items-center">
-                    <div><h4 class="font-bold">${p.nomeConteudo}</h4><p class="text-xs text-slate-500">${p.tipo}</p></div>
+                <div class="glass p-5 rounded-3xl flex justify-between items-center border-l-4 ${p.status === 'Concluído' ? 'border-green-500' : 'border-blue-500'}">
+                    <div><h4 class="font-bold">${p.nomeConteudo}</h4><p class="text-xs text-slate-500 uppercase">${p.tipo}</p></div>
                     <span class="status-badge status-${p.status.toLowerCase().replace(' ', '-')}">${p.status}</span>
                 </div>
-            `).join('') || '<p class="text-center text-slate-500">Sem pedidos.</p>';
-        }
-
-        function addPartnerUser() {
-            Swal.fire({
-                title: 'Nova Lista Parceira',
-                html: '<input id="swal-user" class="swal2-input" placeholder="Usuário"><input id="swal-pass" class="swal2-input" placeholder="Senha">',
-                showCancelButton: true,
-                confirmButtonText: 'Adicionar'
-            }).then((result) => { if(result.isConfirmed) Swal.fire('Sucesso', 'Lista parceira vinculada!', 'success'); });
+            `).join('') || '<p class="text-center text-slate-500">Você ainda não fez nenhum pedido.</p>';
         }
 
         function logoutApp() { localStorage.removeItem('vod_user'); location.reload(); }
